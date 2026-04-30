@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #F7F5F0;
+    --surface: #FFFFFF;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B6B6B;
+    --canary: #F5C842;
+    --urgent: #E03B3B;
+    --positive: #2D9E6B;
+    --border: #E8E4DC;
+  }
+
+  html {
+    background-color: #F7F5F0;
+    color: #1A1A1A;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #F7F5F0;
+    color: #1A1A1A;
+    font-family: var(--font-dm-sans), system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-playfair), Georgia, serif;
+    color: #1A1A1A;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-card shadow-card border border-border;
+  }
+
+  .card-hover {
+    @apply transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  .btn-primary {
+    @apply bg-canary text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
+           hover:bg-canary-dark transition-colors duration-150 cursor-pointer;
+  }
+
+  .btn-outline {
+    @apply bg-transparent text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
+           border border-border hover:border-text-secondary transition-colors duration-150 cursor-pointer;
+  }
+
+  .section-heading {
+    @apply font-display text-3xl md:text-4xl text-text-primary;
+  }
+
+  .section-subheading {
+    @apply font-body text-text-secondary text-lg leading-relaxed;
+  }
+
+  .data-number {
+    @apply font-mono text-text-primary;
+  }
+}
