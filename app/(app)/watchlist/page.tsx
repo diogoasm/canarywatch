@@ -291,8 +291,13 @@ function AddStockForm({
     }
 
     setSaving(true);
-    await onAdd(sharesNum, priceNum);
-    setSaving(false);
+    try {
+      await onAdd(sharesNum, priceNum);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add stock. Check the console for details.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -554,13 +559,24 @@ export default function WatchlistPage() {
   // Fetch watchlist from Supabase
   const fetchWatchlist = useCallback(async () => {
     const supabase = createClient();
+
+    // Verify auth before querying — surfaces session issues immediately
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log("[watchlist] auth →", user ? `uid: ${user.id}` : "no user", userError ?? "");
+    if (!user) {
+      setListError(`Not authenticated${userError ? `: ${userError.message}` : ". Try logging in again."}`);
+      setLoadingList(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("watchlist")
       .select("*")
       .order("added_at", { ascending: true });
 
     if (error) {
-      setListError("Failed to load your watchlist. Please refresh.");
+      console.error("[watchlist] fetch error →", error);
+      setListError(`Supabase error: ${error.message} (code: ${error.code})`);
       setLoadingList(false);
       return;
     }
@@ -603,10 +619,15 @@ export default function WatchlistPage() {
   async function handleAddStock(shares: number, avgBuyPrice: number) {
     if (!selectedStock) return;
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (!user) {
+      const msg = `Not authenticated${userError ? `: ${userError.message}` : ""}`;
+      console.error("[watchlist] handleAddStock — no user:", userError);
+      throw new Error(msg);
+    }
+
+    console.log("[watchlist] inserting:", selectedStock.ticker, "for uid:", user.id);
 
     const { error } = await supabase.from("watchlist").insert({
       user_id: user.id,
@@ -616,10 +637,13 @@ export default function WatchlistPage() {
       avg_buy_price: avgBuyPrice,
     });
 
-    if (!error) {
-      setSelectedStock(null);
-      await fetchWatchlist();
+    if (error) {
+      console.error("[watchlist] insert error →", error);
+      throw new Error(`${error.message} (code: ${error.code})`);
     }
+
+    setSelectedStock(null);
+    await fetchWatchlist();
   }
 
   async function handleDelete(id: string) {
