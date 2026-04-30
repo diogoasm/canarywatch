@@ -2,12 +2,15 @@ export type Plan = "free" | "premium";
 
 export type CanaryStatus = "grey" | "yellow" | "red" | "green";
 
+export type TraderType = "beginner" | "active" | "experienced";
+
 export interface Profile {
   id: string;
   plan: Plan;
   briefings_used: number;
   briefings_reset_at: string;
   stripe_customer_id: string | null;
+  trader_type: TraderType | null;
   created_at: string;
 }
 
