@@ -7,10 +7,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "ticker required" }, { status: 400 });
   }
 
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  if (!apiKey || apiKey === "your_alpha_vantage_api_key") {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey || apiKey === "your_finnhub_api_key") {
     return NextResponse.json(
-      { error: "Alpha Vantage API key not configured", ticker },
+      { error: "Finnhub API key not configured", ticker },
       { status: 503 }
     );
   }
@@ -18,46 +18,43 @@ export async function GET(request: NextRequest) {
   try {
     const [quoteRes, earningsRes] = await Promise.all([
       fetch(
-        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`,
+        `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`,
         { next: { revalidate: 300 } } // cache 5 min
       ),
       fetch(
-        `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&symbol=${ticker}&horizon=3month&apikey=${apiKey}`,
+        `https://finnhub.io/api/v1/calendar/earnings?symbol=${ticker}&token=${apiKey}`,
         { next: { revalidate: 3600 } } // cache 1 hour
       ),
     ]);
 
     const quoteData = await quoteRes.json();
-    const earningsCsv = await earningsRes.text();
+    const earningsData = await earningsRes.json();
 
-    const quote = quoteData["Global Quote"];
+    // Finnhub quote: { c: current, d: change, dp: change%, h, l, o, pc, t }
+    const price: number | null =
+      quoteData.c != null && quoteData.c !== 0 ? quoteData.c : null;
 
-    if (!quote || !quote["05. price"]) {
+    if (price === null) {
       return NextResponse.json({
-        error: "No quote data — API rate limit may be reached",
+        error: "No quote data returned — ticker may be invalid or market closed",
         ticker,
       });
     }
 
-    const price = parseFloat(quote["05. price"]);
-    const changeRaw = (quote["10. change percent"] ?? "0%")
-      .replace("%", "")
-      .replace("+", "");
-    const change_percent = parseFloat(changeRaw) || 0;
+    const change_percent: number =
+      quoteData.dp != null ? quoteData.dp : 0;
 
-    // EARNINGS_CALENDAR returns CSV: symbol,name,reportDate,fiscalDateEnding,estimate,currency
-    let next_earnings_date: string | null = null;
+    // Finnhub earnings: { earningsCalendar: [{ date, symbol, ... }] }
+    // Filter to upcoming dates only, take the nearest one
     const today = new Date().toISOString().split("T")[0];
-    const lines = earningsCsv.split("\n").filter(Boolean);
+    const upcoming = (earningsData.earningsCalendar ?? [])
+      .filter((e: { date: string }) => e.date >= today)
+      .sort((a: { date: string }, b: { date: string }) =>
+        a.date.localeCompare(b.date)
+      );
 
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(",");
-      const reportDate = parts[2]?.trim();
-      if (reportDate && reportDate >= today) {
-        next_earnings_date = reportDate;
-        break;
-      }
-    }
+    const next_earnings_date: string | null =
+      upcoming.length > 0 ? upcoming[0].date : null;
 
     return NextResponse.json({ ticker, price, change_percent, next_earnings_date });
   } catch {

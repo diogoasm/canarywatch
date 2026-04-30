@@ -7,28 +7,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  if (!apiKey || apiKey === "your_alpha_vantage_api_key") {
+  const apiKey = process.env.FINNHUB_API_KEY;
+  if (!apiKey || apiKey === "your_finnhub_api_key") {
     return NextResponse.json({
       results: [],
-      error: "Alpha Vantage API key not configured",
+      error: "Finnhub API key not configured",
     });
   }
 
   try {
     const res = await fetch(
-      `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(query)}&apikey=${apiKey}`,
+      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${apiKey}`,
       { next: { revalidate: 0 } }
     );
     const data = await res.json();
 
-    const results = (data.bestMatches ?? [])
-      .filter((m: Record<string, string>) => m["3. type"] === "Equity")
+    // Finnhub result: { symbol, displaySymbol, description, type }
+    const results = (data.result ?? [])
+      .filter((m: { type: string }) => m.type === "Common Stock")
       .slice(0, 6)
-      .map((match: Record<string, string>) => ({
-        ticker: match["1. symbol"],
-        company_name: match["2. name"],
-        exchange: match["4. region"],
+      .map((match: { symbol: string; description: string; displaySymbol: string }) => ({
+        ticker: match.symbol,
+        company_name: match.description,
+        exchange: match.displaySymbol,
       }));
 
     return NextResponse.json({ results });
