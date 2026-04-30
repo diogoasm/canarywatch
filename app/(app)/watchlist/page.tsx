@@ -389,8 +389,17 @@ function WatchlistRow({
   onDelete: (id: string) => void;
 }) {
   const isLoading = quote === "loading";
-  const price = !isLoading && quote ? quote.price : null;
-  const earningsDate = !isLoading && quote ? quote.next_earnings_date : null;
+  // quote.price can be undefined when the API returns an error object (no price field)
+  // Use != null to catch both null and undefined, and filter out NaN
+  const rawPrice = !isLoading && quote != null ? quote.price : undefined;
+  const price: number | null =
+    rawPrice != null && !isNaN(rawPrice) ? rawPrice : null;
+  const rawChange =
+    !isLoading && quote != null ? quote.change_percent : undefined;
+  const changePercent: number | null =
+    rawChange != null && !isNaN(rawChange) ? rawChange : null;
+  const earningsDate: string | null =
+    !isLoading && quote != null ? (quote.next_earnings_date ?? null) : null;
 
   const pnl =
     price !== null
@@ -432,14 +441,14 @@ function WatchlistRow({
             <p className="font-mono text-sm text-text-primary">
               ${price.toFixed(2)}
             </p>
-            {!isLoading && quote && quote.change_percent !== 0 && (
+            {changePercent !== null && changePercent !== 0 && (
               <p
                 className={`font-mono text-xs ${
-                  quote.change_percent >= 0 ? "text-positive" : "text-urgent"
+                  changePercent >= 0 ? "text-positive" : "text-urgent"
                 }`}
               >
-                {quote.change_percent >= 0 ? "+" : ""}
-                {quote.change_percent.toFixed(2)}%
+                {changePercent >= 0 ? "+" : ""}
+                {changePercent.toFixed(2)}%
               </p>
             )}
           </>
@@ -457,7 +466,7 @@ function WatchlistRow({
       {/* Avg buy price */}
       <div className="text-right hidden md:block w-20 shrink-0">
         <p className="font-mono text-sm text-text-secondary">
-          ${item.avg_buy_price.toFixed(2)}
+          ${Number(item.avg_buy_price).toFixed(2)}
         </p>
         <p className="font-body text-xs text-text-secondary">avg cost</p>
       </div>
