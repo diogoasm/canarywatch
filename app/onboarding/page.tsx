@@ -92,19 +92,23 @@ export default function OnboardingPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
+      setSaving(false);
       router.push("/login");
       return;
     }
 
-    const { error: updateError } = await supabase
+    console.log("[onboarding] saving trader_type:", selected, "for user:", user.id);
+
+    // upsert handles both: profile row already created by trigger, or not yet
+    const { error: upsertError } = await supabase
       .from("profiles")
-      .update({ trader_type: selected })
-      .eq("id", user.id);
+      .upsert({ id: user.id, trader_type: selected });
 
     setSaving(false);
 
-    if (updateError) {
-      setError("Something went wrong. Please try again.");
+    if (upsertError) {
+      console.error("[onboarding] Supabase error:", upsertError);
+      setError(`Could not save: ${upsertError.message}`);
       return;
     }
 
