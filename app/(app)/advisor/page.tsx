@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CanaryLogoIcon } from "@/components/CanaryIcon";
+import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import type { Profile } from "@/types";
 
 // ─── Local types ───────────────────────────────────────────────────────────
@@ -20,12 +20,20 @@ interface KeyDate {
   company_name: string;
   earnings_date: string | null;
   days_until: number | null;
+  confirmed?: boolean;
 }
+
+interface WarningItem {
+  message: string;
+  severity: "red" | "yellow" | "green";
+}
+
+type WarningEntry = WarningItem | string;
 
 interface BriefingContent {
   portfolio_snapshot: PortfolioSnapshot;
   key_dates: KeyDate[];
-  canary_warnings: string[];
+  canary_warnings: WarningEntry[];
   market_context: string;
   outlook: string[];
   disclaimer: string;
@@ -276,77 +284,126 @@ function SnapshotCard({ snapshot }: { snapshot: PortfolioSnapshot }) {
   );
 }
 
+function fmtEarningsDate(dateStr: string | null): string {
+  if (!dateStr) return "Unknown";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function KeyDatesCard({ dates }: { dates: KeyDate[] }) {
   return (
     <div className="card p-6 border-l-4 border-l-canary">
       <h3 className="font-display text-base font-bold text-text-primary mb-4">
         Key Dates
       </h3>
-      {dates.length === 0 ? (
-        <p className="font-body text-sm text-text-secondary">
-          No upcoming earnings dates found for your holdings.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {dates.map((d) => {
-            const days = d.days_until;
-            const isUrgent = days !== null && days <= 7;
-            return (
-              <div key={d.ticker} className="flex items-center gap-3">
-                <div className="w-5 shrink-0">
-                  <CanaryLogoIcon size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
+      <div className="flex flex-col gap-4">
+        {dates.map((d) => {
+          const days = d.days_until;
+          const confirmed = d.confirmed !== false; // treat undefined as confirmed (legacy)
+          const isUrgent = confirmed && days !== null && days <= 7;
+          const isWatch = confirmed && days !== null && days > 7 && days <= 21;
+
+          const iconStatus = !confirmed
+            ? "grey"
+            : isUrgent
+            ? "red"
+            : isWatch
+            ? "yellow"
+            : "yellow";
+
+          return (
+            <div key={d.ticker} className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5">
+                <CanaryIcon status={iconStatus} size={16} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="font-mono text-sm font-bold text-text-primary">
                     {d.ticker}
                   </span>
-                  <span className="font-body text-sm text-text-secondary ml-2">
-                    — {d.company_name}
+                  <span className="font-body text-xs text-text-secondary truncate">
+                    {d.company_name}
                   </span>
                 </div>
-                <span
-                  className={`font-body text-xs font-medium shrink-0 ${
-                    isUrgent ? "text-urgent" : "text-text-secondary"
-                  }`}
-                >
-                  {days !== null
-                    ? `Earnings in ${days} day${days === 1 ? "" : "s"}`
-                    : "No upcoming earnings found"}
-                </span>
+                {d.earnings_date ? (
+                  <p
+                    className={`font-body text-xs mt-0.5 ${
+                      isUrgent
+                        ? "text-urgent font-semibold"
+                        : "text-text-secondary"
+                    }`}
+                  >
+                    {confirmed ? "Earnings confirmed:" : "Earnings estimated:"}{" "}
+                    {confirmed ? "" : "~"}
+                    {fmtEarningsDate(d.earnings_date)}
+                    {days !== null && (
+                      <span className="ml-1 font-medium">
+                        ({days} day{days === 1 ? "" : "s"} away)
+                      </span>
+                    )}
+                    {!confirmed && (
+                      <span className="ml-1 italic text-text-secondary opacity-70">
+                        — based on historical pattern
+                      </span>
+                    )}
+                  </p>
+                ) : (
+                  <p className="font-body text-xs text-text-secondary mt-0.5">
+                    No earnings date available
+                  </p>
+                )}
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function WarningsCard({ warnings }: { warnings: string[] }) {
-  if (warnings.length === 0) {
+function WarningsCard({ warnings }: { warnings: WarningEntry[] }) {
+  // Normalize: handle both legacy string[] and new {message, severity}[] formats
+  const normalized: WarningItem[] = warnings.map((w) =>
+    typeof w === "string"
+      ? { message: w, severity: "red" as const }
+      : (w as WarningItem)
+  );
+
+  if (normalized.length === 0) {
     return (
       <div className="card p-6 border-l-4 border-l-positive">
         <h3 className="font-display text-base font-bold text-text-primary mb-2">
           Canary Warnings
         </h3>
-        <p className="font-body text-sm text-positive font-medium">
-          No major warnings at this time.
-        </p>
+        <div className="flex items-center gap-2">
+          <CanaryIcon status="green" size={16} />
+          <p className="font-body text-sm text-positive font-medium">
+            No major warnings at this time.
+          </p>
+        </div>
       </div>
     );
   }
 
+  const hasRed = normalized.some((w) => w.severity === "red");
+  const borderColor = hasRed ? "border-l-urgent" : "border-l-canary";
+
   return (
-    <div className="card p-6 border-l-4 border-l-urgent">
+    <div className={`card p-6 border-l-4 ${borderColor}`}>
       <h3 className="font-display text-base font-bold text-text-primary mb-4">
         Canary Warnings
       </h3>
       <ul className="flex flex-col gap-3">
-        {warnings.map((w, i) => (
-          <li key={i} className="flex items-start gap-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-urgent mt-2 shrink-0" />
+        {normalized.map((w, i) => (
+          <li key={i} className="flex items-start gap-2.5">
+            <div className="shrink-0 mt-0.5">
+              <CanaryIcon status={w.severity} size={16} />
+            </div>
             <p className="font-body text-sm text-text-primary leading-relaxed">
-              {w}
+              {w.message}
             </p>
           </li>
         ))}

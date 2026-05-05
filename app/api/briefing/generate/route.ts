@@ -2,11 +2,56 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { daysUntil } from "@/lib/utils";
+import {
+  getEarningsCalendar,
+  getAnalystEstimates,
+  getAnalystRating,
+  getPriceTarget,
+} from "@/lib/fmp";
 
 const MONTHLY_LIMIT = 2;
 
-const SYSTEM_PROMPT =
-  "You are Canary, a professional AI trading coach for retail investors. You give concise, data-driven portfolio briefings. You are direct, professional and human — like a smart friend who works in finance. You never give buy or sell recommendations. You flag risks, key dates and important context. You always end with a disclaimer. Return your response as a valid JSON object only — no markdown, no explanation, just the raw JSON.";
+const SYSTEM_PROMPT = `You are Canary, a professional AI trading coach for retail investors. You receive detailed financial data including earnings history, analyst estimates, and price targets. Use ALL of this data to give a specific, data-driven briefing.
+
+For each stock:
+- Reference whether last quarter beat or missed estimates and by how much
+- State whether the stock is on track to beat next quarter based on recent performance trends
+- Reference the analyst price target and what the upside implies
+- Flag earnings dates precisely — always give the date and days remaining
+- Flag if a stock is significantly below analyst price target (potential upside) or above (potential overvaluation)
+
+Be direct and specific. Use real numbers. Never be vague. Max 2-3 sentences per section but make every sentence count.
+
+Return your response as a valid JSON object only — no markdown, no explanation, just the raw JSON with these keys: canary_warnings, market_context, outlook, disclaimer`;
+
+// ─── Formatting helpers ────────────────────────────────────────────────────
+
+function fmtRev(n: number | null): string {
+  if (n === null) return "N/A";
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
+  if (abs >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
+function fmtDateStr(dateStr: string | null): string {
+  if (!dateStr) return "Unknown";
+  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function beatMissLabel(pct: number | null): string {
+  if (pct === null) return "";
+  return pct >= 0
+    ? `BEAT by ${Math.abs(pct).toFixed(1)}%`
+    : `MISS by ${Math.abs(pct).toFixed(1)}%`;
+}
+
+// ─── Route handler ─────────────────────────────────────────────────────────
 
 export async function POST() {
   const supabase = createClient();
@@ -76,15 +121,13 @@ export async function POST() {
   if (!watchlist || watchlist.length === 0) {
     return NextResponse.json(
       {
-        error:
-          "Add stocks to your watchlist before generating a briefing.",
+        error: "Add stocks to your watchlist before generating a briefing.",
         empty_watchlist: true,
       },
       { status: 400 }
     );
   }
 
-  // Finnhub quotes + earnings
   const finnhubKey = process.env.FINNHUB_API_KEY;
   if (!finnhubKey) {
     return NextResponse.json(
@@ -93,41 +136,40 @@ export async function POST() {
     );
   }
 
+  // ── Fetch all data in parallel per stock ──────────────────────────────────
+
   const stockData = await Promise.all(
     watchlist.map(async (item) => {
       try {
-        const [quoteRes, earningsRes] = await Promise.all([
-          fetch(
-            `https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${finnhubKey}`
-          ),
-          fetch(
-            `https://finnhub.io/api/v1/calendar/earnings?symbol=${item.ticker}&token=${finnhubKey}`
-          ),
-        ]);
-        const quoteJson = await quoteRes.json();
-        const earningsJson = await earningsRes.json();
+        const [quoteRes, earningsData, estimatesData, ratingData, targetData] =
+          await Promise.all([
+            fetch(
+              `https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${finnhubKey}`,
+              { cache: "no-store" }
+            ),
+            getEarningsCalendar(item.ticker),
+            getAnalystEstimates(item.ticker),
+            getAnalystRating(item.ticker),
+            getPriceTarget(item.ticker),
+          ]);
 
+        const quoteJson = await quoteRes.json();
         const price: number | null =
           quoteJson.c && quoteJson.c !== 0 ? quoteJson.c : null;
         const changePercent: number = quoteJson.dp ?? 0;
 
-        const today = new Date().toISOString().split("T")[0];
-        const upcoming = (earningsJson.earningsCalendar ?? [])
-          .filter((e: { date: string }) => e.date >= today)
-          .sort(
-            (a: { date: string }, b: { date: string }) =>
-              a.date.localeCompare(b.date)
-          );
-        const nextEarnings: string | null =
-          upcoming.length > 0 ? upcoming[0].date : null;
-
         const pnlDollars =
-          price !== null
-            ? (price - item.avg_buy_price) * item.shares
-            : null;
+          price !== null ? (price - item.avg_buy_price) * item.shares : null;
         const pnlPercent =
           price !== null && item.avg_buy_price > 0
             ? ((price - item.avg_buy_price) / item.avg_buy_price) * 100
+            : null;
+
+        const upsidePct =
+          targetData.target_consensus !== null &&
+          price !== null &&
+          price > 0
+            ? ((targetData.target_consensus - price) / price) * 100
             : null;
 
         return {
@@ -139,8 +181,19 @@ export async function POST() {
           change_percent: changePercent,
           pnl_dollars: pnlDollars,
           pnl_percent: pnlPercent,
-          next_earnings_date: nextEarnings,
-          days_until_earnings: nextEarnings ? daysUntil(nextEarnings) : null,
+          // Earnings (from FMP)
+          next_earnings_date: earningsData.next_date,
+          days_until_earnings: earningsData.next_date
+            ? daysUntil(earningsData.next_date)
+            : null,
+          earnings_confirmed: earningsData.confirmed,
+          last_quarter: earningsData.last_quarter,
+          // Analyst data (from FMP)
+          next_eps_estimate: estimatesData.next_eps_estimate,
+          next_revenue_estimate: estimatesData.next_revenue_estimate,
+          analyst_consensus: ratingData.consensus,
+          price_target: targetData.target_consensus,
+          upside_pct: upsidePct,
         };
       } catch {
         return {
@@ -154,12 +207,20 @@ export async function POST() {
           pnl_percent: null,
           next_earnings_date: null,
           days_until_earnings: null,
+          earnings_confirmed: false,
+          last_quarter: null,
+          next_eps_estimate: null,
+          next_revenue_estimate: null,
+          analyst_consensus: null,
+          price_target: null,
+          upside_pct: null,
         };
       }
     })
   );
 
-  // Portfolio totals
+  // ── Portfolio totals ───────────────────────────────────────────────────────
+
   const invested = stockData.reduce(
     (sum, s) => sum + s.shares * s.avg_buy_price,
     0
@@ -190,20 +251,24 @@ export async function POST() {
         )
       : null;
 
-  // Key dates from real earnings data
+  // ── Key dates (all stocks, confirmed or estimated) ─────────────────────────
+
   const keyDates = stockData
-    .filter((s) => s.next_earnings_date !== null)
-    .sort(
-      (a, b) => (a.days_until_earnings ?? 9999) - (b.days_until_earnings ?? 9999)
-    )
     .map((s) => ({
       ticker: s.ticker,
       company_name: s.company_name,
       earnings_date: s.next_earnings_date,
-      days_until: s.days_until_earnings,
-    }));
+      days_until:
+        s.next_earnings_date ? daysUntil(s.next_earnings_date) : null,
+      confirmed: s.earnings_confirmed,
+    }))
+    .sort(
+      (a, b) =>
+        (a.days_until ?? 99999) - (b.days_until ?? 99999)
+    );
 
-  // Build prompt
+  // ── Build rich context string for Claude ───────────────────────────────────
+
   const stockLines = stockData
     .map((s) => {
       const price =
@@ -212,33 +277,62 @@ export async function POST() {
         s.pnl_dollars !== null && s.pnl_percent !== null
           ? `${s.pnl_dollars >= 0 ? "+" : ""}$${Math.abs(s.pnl_dollars).toFixed(2)} (${s.pnl_percent >= 0 ? "+" : ""}${s.pnl_percent.toFixed(2)}%)`
           : "N/A";
-      const earnings =
+
+      const earningsStr =
         s.next_earnings_date !== null
-          ? `${s.next_earnings_date} (in ${s.days_until_earnings} days)`
+          ? `${fmtDateStr(s.next_earnings_date)} (${s.days_until_earnings} days away) — ${s.earnings_confirmed ? "CONFIRMED" : "ESTIMATED"}`
           : "Unknown";
-      return `${s.ticker} - ${s.company_name} | Shares: ${s.shares} | Avg Buy: $${Number(s.avg_buy_price).toFixed(2)} | Current: ${price} | P&L: ${pnlStr} | Next Earnings: ${earnings}`;
+
+      const lq = s.last_quarter;
+      const lastQStr = lq
+        ? `Revenue ${fmtRev(lq.revenue_actual)} actual vs ${fmtRev(lq.revenue_estimated)} estimated (${beatMissLabel(lq.revenue_beat_pct)}) | EPS ${lq.eps_actual?.toFixed(2) ?? "N/A"} actual vs ${lq.eps_estimated?.toFixed(2) ?? "N/A"} estimated (${beatMissLabel(lq.eps_beat_pct)})`
+        : "No data";
+
+      const nextQStr =
+        s.next_revenue_estimate !== null || s.next_eps_estimate !== null
+          ? `Revenue ${fmtRev(s.next_revenue_estimate)} | EPS ${s.next_eps_estimate !== null ? s.next_eps_estimate.toFixed(2) : "N/A"}`
+          : "No estimates available";
+
+      const analystStr =
+        s.analyst_consensus || s.price_target !== null
+          ? `${s.analyst_consensus ?? "N/A"} | Price Target: ${s.price_target !== null ? `$${s.price_target.toFixed(2)} (avg) — ${s.upside_pct !== null ? `${s.upside_pct >= 0 ? "+" : ""}${s.upside_pct.toFixed(1)}% ${s.upside_pct >= 0 ? "upside" : "downside"} from current` : ""}` : "N/A"}`
+          : "No analyst data";
+
+      return [
+        `${s.ticker} - ${s.company_name}`,
+        `Shares: ${s.shares} | Avg Buy: $${Number(s.avg_buy_price).toFixed(2)} | Current: ${price} | P&L: ${pnlStr}`,
+        `Next Earnings: ${earningsStr}`,
+        `Last Quarter: ${lastQStr}`,
+        `Next Quarter Estimates: ${nextQStr}`,
+        `Analyst Consensus: ${analystStr}`,
+        "---",
+      ].join("\n");
     })
     .join("\n");
 
-  const userPrompt = `Analyse this portfolio and give me a briefing:
+  const userPrompt = `Analyse this portfolio and give me a detailed briefing using all the data provided:
 
 ${stockLines}
 
 Total Portfolio Value: $${currentValue.toFixed(2)} | Total P&L: ${totalPnlDollars >= 0 ? "+" : ""}$${Math.abs(totalPnlDollars).toFixed(2)} (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%)
 
-Be concise. Max 2-3 sentences per section. Flag the most important things only.
-
 Return ONLY a valid JSON object with exactly these keys:
-- "canary_warnings": array of strings — one string per notable risk or flag (empty array if none)
-- "market_context": string — 2-3 sentences of relevant market/sector context for these holdings
-- "outlook": array of strings — one per stock, format each as "TICKER: forward-looking note"
+- "canary_warnings": array of objects — each with {"message": string, "severity": "red"|"yellow"|"green"} — red for urgent risks, yellow for moderate watch items, green for positive signals (empty array if truly none)
+- "market_context": string — 2-3 sentences of relevant sector/market context for these holdings
+- "outlook": array of strings — one per stock, format: "TICKER: forward-looking note referencing specific data"
 - "disclaimer": string — brief financial disclaimer`;
 
-  // Claude API
+  // ── Call Claude ────────────────────────────────────────────────────────────
+
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+  interface AIWarning {
+    message: string;
+    severity: "red" | "yellow" | "green";
+  }
+
   let aiResult: {
-    canary_warnings: string[];
+    canary_warnings: AIWarning[];
     market_context: string;
     outlook: string[];
     disclaimer: string;
@@ -247,7 +341,7 @@ Return ONLY a valid JSON object with exactly these keys:
   try {
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1024,
+      max_tokens: 1500,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
     });
@@ -268,29 +362,38 @@ Return ONLY a valid JSON object with exactly these keys:
     );
   }
 
-  // Compose final content
+  // ── Normalize warnings (handle string[] fallback) ──────────────────────────
+
+  const validSeverities = new Set(["red", "yellow", "green"]);
+  const canaryWarnings: AIWarning[] = Array.isArray(aiResult.canary_warnings)
+    ? aiResult.canary_warnings.map((w) => {
+        if (typeof w === "string") return { message: w, severity: "red" as const };
+        const wo = w as Partial<AIWarning>;
+        return {
+          message: wo.message ?? String(w),
+          severity: validSeverities.has(wo.severity ?? "")
+            ? (wo.severity as "red" | "yellow" | "green")
+            : ("red" as const),
+        };
+      })
+    : [];
+
+  // ── Compose final briefing content ─────────────────────────────────────────
+
   const briefingContent = {
     portfolio_snapshot: {
       total_value: currentValue,
       total_pnl_dollars: totalPnlDollars,
       total_pnl_percent: totalPnlPercent,
       best_performer: bestPerformer
-        ? {
-            ticker: bestPerformer.ticker,
-            pnl_percent: bestPerformer.pnl_percent!,
-          }
+        ? { ticker: bestPerformer.ticker, pnl_percent: bestPerformer.pnl_percent! }
         : null,
       worst_performer: worstPerformer
-        ? {
-            ticker: worstPerformer.ticker,
-            pnl_percent: worstPerformer.pnl_percent!,
-          }
+        ? { ticker: worstPerformer.ticker, pnl_percent: worstPerformer.pnl_percent! }
         : null,
     },
     key_dates: keyDates,
-    canary_warnings: Array.isArray(aiResult.canary_warnings)
-      ? aiResult.canary_warnings
-      : [],
+    canary_warnings: canaryWarnings,
     market_context: aiResult.market_context ?? "",
     outlook: Array.isArray(aiResult.outlook) ? aiResult.outlook : [],
     disclaimer:
@@ -298,7 +401,8 @@ Return ONLY a valid JSON object with exactly these keys:
       "This briefing is AI-generated for informational purposes only. Not financial advice. Always do your own research before making investment decisions.",
   };
 
-  // Save briefing
+  // ── Save to Supabase ───────────────────────────────────────────────────────
+
   const { data: savedBriefing, error: saveError } = await supabase
     .from("briefings")
     .insert({
