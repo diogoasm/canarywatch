@@ -3,15 +3,22 @@ import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { daysUntil } from "@/lib/utils";
 import {
-  getEarningsCalendar,
+  getEarningsCalendar as getFmpEarnings,
   getAnalystEstimates,
   getAnalystRating,
-  getPriceTarget,
+  getPriceTarget as getFmpPriceTarget,
 } from "@/lib/fmp";
+import {
+  getUpcomingEarnings,
+  getRecentEarnings,
+  getFinnhubPriceTarget,
+  getRecommendationTrend,
+  getBasicMetrics,
+} from "@/lib/finnhub";
 
 const MONTHLY_LIMIT = 2;
 
-const SYSTEM_PROMPT = `You are Canary, a professional AI trading coach for retail investors. You receive detailed financial data including earnings history, analyst estimates, and price targets. Use ALL of this data to give a specific, data-driven briefing.
+const SYSTEM_PROMPT = `You are Canary, a professional AI trading coach for retail investors. You receive detailed financial data including earnings history, analyst estimates, price targets, and fundamental metrics. Use ALL of this data to give a specific, data-driven briefing.
 
 For each stock:
 - Reference whether last quarter beat or missed estimates and by how much
@@ -19,6 +26,7 @@ For each stock:
 - Reference the analyst price target and what the upside implies
 - Flag earnings dates precisely — always give the date and days remaining
 - Flag if a stock is significantly below analyst price target (potential upside) or above (potential overvaluation)
+- Flag stocks with no institutional analyst coverage as higher-risk positions
 
 Be direct and specific. Use real numbers. Never be vague. Max 2-3 sentences per section but make every sentence count.
 
@@ -45,10 +53,16 @@ function fmtDateStr(dateStr: string | null): string {
 }
 
 function beatMissLabel(pct: number | null): string {
-  if (pct === null) return "";
+  if (pct === null) return "vs estimate unknown";
   return pct >= 0
     ? `BEAT by ${Math.abs(pct).toFixed(1)}%`
     : `MISS by ${Math.abs(pct).toFixed(1)}%`;
+}
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split("T")[0];
 }
 
 // ─── Route handler ─────────────────────────────────────────────────────────
@@ -56,7 +70,6 @@ function beatMissLabel(pct: number | null): string {
 export async function POST() {
   const supabase = createClient();
 
-  // Auth
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -64,7 +77,6 @@ export async function POST() {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // Profile + credits
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("plan, briefings_used, briefings_reset_at")
@@ -75,7 +87,7 @@ export async function POST() {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 
-  // Monthly reset check
+  // Monthly reset
   const now = new Date();
   const resetAt = new Date(profile.briefings_reset_at);
   let briefingsUsed: number = profile.briefings_used;
@@ -93,7 +105,6 @@ export async function POST() {
     briefingsUsed = 0;
   }
 
-  // Limit check
   if (profile.plan === "free" && briefingsUsed >= MONTHLY_LIMIT) {
     return NextResponse.json(
       {
@@ -105,7 +116,6 @@ export async function POST() {
     );
   }
 
-  // Watchlist
   const { data: watchlist, error: watchlistError } = await supabase
     .from("watchlist")
     .select("*")
@@ -136,40 +146,99 @@ export async function POST() {
     );
   }
 
-  // ── Fetch all data in parallel per stock ──────────────────────────────────
+  // ── Fetch all data sources in parallel per stock ──────────────────────────
 
   const stockData = await Promise.all(
     watchlist.map(async (item) => {
       try {
-        const [quoteRes, earningsData, estimatesData, ratingData, targetData] =
-          await Promise.all([
-            fetch(
-              `https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${finnhubKey}`,
-              { cache: "no-store" }
-            ),
-            getEarningsCalendar(item.ticker),
-            getAnalystEstimates(item.ticker),
-            getAnalystRating(item.ticker),
-            getPriceTarget(item.ticker),
-          ]);
+        const [
+          quoteRes,
+          fmpEarnings,
+          fmpEstimates,
+          fmpRating,
+          fmpTarget,
+          fhUpcoming,
+          fhRecent,
+          fhTarget,
+          fhConsensus,
+          fhMetrics,
+        ] = await Promise.all([
+          fetch(
+            `https://finnhub.io/api/v1/quote?symbol=${item.ticker}&token=${finnhubKey}`,
+            { cache: "no-store" }
+          ),
+          getFmpEarnings(item.ticker),
+          getAnalystEstimates(item.ticker),
+          getAnalystRating(item.ticker),
+          getFmpPriceTarget(item.ticker),
+          getUpcomingEarnings(item.ticker),
+          getRecentEarnings(item.ticker),
+          getFinnhubPriceTarget(item.ticker),
+          getRecommendationTrend(item.ticker),
+          getBasicMetrics(item.ticker),
+        ]);
 
         const quoteJson = await quoteRes.json();
         const price: number | null =
           quoteJson.c && quoteJson.c !== 0 ? quoteJson.c : null;
         const changePercent: number = quoteJson.dp ?? 0;
 
+        // ── Resolve earnings date: FMP → Finnhub upcoming → Finnhub +91d estimate ──
+
+        let nextEarningsDate: string | null = null;
+        let earningsConfirmed = false;
+
+        if (fmpEarnings.next_date !== null) {
+          nextEarningsDate = fmpEarnings.next_date;
+          earningsConfirmed = fmpEarnings.confirmed;
+        } else if (fhUpcoming.length > 0) {
+          nextEarningsDate = fhUpcoming[0].date;
+          earningsConfirmed = true;
+        } else if (fhRecent.length > 0 && fhRecent[0].period) {
+          nextEarningsDate = addDays(fhRecent[0].period, 91);
+          earningsConfirmed = false;
+        }
+
+        // ── Resolve last quarter: FMP → Finnhub stock/earnings ────────────────
+
+        let lastQuarter = fmpEarnings.last_quarter;
+        if (lastQuarter === null && fhRecent.length > 0) {
+          const q = fhRecent[0];
+          const epsBeatPct =
+            q.actual !== null && q.estimate !== null && q.estimate !== 0
+              ? ((q.actual - q.estimate) / Math.abs(q.estimate)) * 100
+              : null;
+          lastQuarter = {
+            date: q.period,
+            eps_actual: q.actual,
+            eps_estimated: q.estimate,
+            eps_beat_pct: epsBeatPct,
+            revenue_actual: null,
+            revenue_estimated: null,
+            revenue_beat_pct: null,
+          };
+        }
+
+        // ── Resolve analyst data: FMP → Finnhub ───────────────────────────────
+
+        const analystConsensus = fmpRating.consensus ?? fhConsensus;
+        const priceTarget =
+          fmpTarget.target_consensus ?? fhTarget.targetMean;
+        const priceTargetHigh =
+          fmpTarget.target_high ?? fhTarget.targetHigh;
+        const priceTargetLow =
+          fmpTarget.target_low ?? fhTarget.targetLow;
+
+        const upsidePct =
+          priceTarget !== null && price !== null && price > 0
+            ? ((priceTarget - price) / price) * 100
+            : null;
+
         const pnlDollars =
           price !== null ? (price - item.avg_buy_price) * item.shares : null;
         const pnlPercent =
           price !== null && item.avg_buy_price > 0
             ? ((price - item.avg_buy_price) / item.avg_buy_price) * 100
-            : null;
-
-        const upsidePct =
-          targetData.target_consensus !== null &&
-          price !== null &&
-          price > 0
-            ? ((targetData.target_consensus - price) / price) * 100
             : null;
 
         return {
@@ -181,19 +250,18 @@ export async function POST() {
           change_percent: changePercent,
           pnl_dollars: pnlDollars,
           pnl_percent: pnlPercent,
-          // Earnings (from FMP)
-          next_earnings_date: earningsData.next_date,
-          days_until_earnings: earningsData.next_date
-            ? daysUntil(earningsData.next_date)
-            : null,
-          earnings_confirmed: earningsData.confirmed,
-          last_quarter: earningsData.last_quarter,
-          // Analyst data (from FMP)
-          next_eps_estimate: estimatesData.next_eps_estimate,
-          next_revenue_estimate: estimatesData.next_revenue_estimate,
-          analyst_consensus: ratingData.consensus,
-          price_target: targetData.target_consensus,
+          next_earnings_date: nextEarningsDate,
+          days_until_earnings: nextEarningsDate ? daysUntil(nextEarningsDate) : null,
+          earnings_confirmed: earningsConfirmed,
+          last_quarter: lastQuarter,
+          next_eps_estimate: fmpEstimates.next_eps_estimate,
+          next_revenue_estimate: fmpEstimates.next_revenue_estimate,
+          analyst_consensus: analystConsensus,
+          price_target: priceTarget,
+          price_target_high: priceTargetHigh,
+          price_target_low: priceTargetLow,
           upside_pct: upsidePct,
+          metrics: fhMetrics,
         };
       } catch {
         return {
@@ -213,7 +281,15 @@ export async function POST() {
           next_revenue_estimate: null,
           analyst_consensus: null,
           price_target: null,
+          price_target_high: null,
+          price_target_low: null,
           upside_pct: null,
+          metrics: {
+            week52High: null,
+            week52Low: null,
+            peRatio: null,
+            revenueGrowthTTMYoy: null,
+          },
         };
       }
     })
@@ -251,23 +327,19 @@ export async function POST() {
         )
       : null;
 
-  // ── Key dates (all stocks, confirmed or estimated) ─────────────────────────
+  // ── Key dates (all stocks) ─────────────────────────────────────────────────
 
   const keyDates = stockData
     .map((s) => ({
       ticker: s.ticker,
       company_name: s.company_name,
       earnings_date: s.next_earnings_date,
-      days_until:
-        s.next_earnings_date ? daysUntil(s.next_earnings_date) : null,
+      days_until: s.next_earnings_date ? daysUntil(s.next_earnings_date) : null,
       confirmed: s.earnings_confirmed,
     }))
-    .sort(
-      (a, b) =>
-        (a.days_until ?? 99999) - (b.days_until ?? 99999)
-    );
+    .sort((a, b) => (a.days_until ?? 99999) - (b.days_until ?? 99999));
 
-  // ── Build rich context string for Claude ───────────────────────────────────
+  // ── Build Claude context string ────────────────────────────────────────────
 
   const stockLines = stockData
     .map((s) => {
@@ -278,35 +350,77 @@ export async function POST() {
           ? `${s.pnl_dollars >= 0 ? "+" : ""}$${Math.abs(s.pnl_dollars).toFixed(2)} (${s.pnl_percent >= 0 ? "+" : ""}${s.pnl_percent.toFixed(2)}%)`
           : "N/A";
 
+      // Earnings line
+      const earningsLabel = s.earnings_confirmed
+        ? "CONFIRMED"
+        : "~estimated based on 90-day cadence";
       const earningsStr =
         s.next_earnings_date !== null
-          ? `${fmtDateStr(s.next_earnings_date)} (${s.days_until_earnings} days away) — ${s.earnings_confirmed ? "CONFIRMED" : "ESTIMATED"}`
-          : "Unknown";
+          ? `${fmtDateStr(s.next_earnings_date)} (${s.days_until_earnings} days away) — ${earningsLabel}`
+          : "No date found in any data source";
 
+      // Last quarter
       const lq = s.last_quarter;
       const lastQStr = lq
-        ? `Revenue ${fmtRev(lq.revenue_actual)} actual vs ${fmtRev(lq.revenue_estimated)} estimated (${beatMissLabel(lq.revenue_beat_pct)}) | EPS ${lq.eps_actual?.toFixed(2) ?? "N/A"} actual vs ${lq.eps_estimated?.toFixed(2) ?? "N/A"} estimated (${beatMissLabel(lq.eps_beat_pct)})`
-        : "No data";
+        ? [
+            lq.revenue_actual !== null
+              ? `Revenue ${fmtRev(lq.revenue_actual)} actual vs ${fmtRev(lq.revenue_estimated)} estimated (${beatMissLabel(lq.revenue_beat_pct)})`
+              : null,
+            `EPS ${lq.eps_actual?.toFixed(2) ?? "N/A"} actual vs ${lq.eps_estimated?.toFixed(2) ?? "N/A"} estimated (${beatMissLabel(lq.eps_beat_pct)})`,
+          ]
+            .filter(Boolean)
+            .join(" | ")
+        : "No historical earnings data available";
 
+      // Next quarter estimates
       const nextQStr =
         s.next_revenue_estimate !== null || s.next_eps_estimate !== null
           ? `Revenue ${fmtRev(s.next_revenue_estimate)} | EPS ${s.next_eps_estimate !== null ? s.next_eps_estimate.toFixed(2) : "N/A"}`
-          : "No estimates available";
+          : "No analyst estimates available";
 
-      const analystStr =
-        s.analyst_consensus || s.price_target !== null
-          ? `${s.analyst_consensus ?? "N/A"} | Price Target: ${s.price_target !== null ? `$${s.price_target.toFixed(2)} (avg) — ${s.upside_pct !== null ? `${s.upside_pct >= 0 ? "+" : ""}${s.upside_pct.toFixed(1)}% ${s.upside_pct >= 0 ? "upside" : "downside"} from current` : ""}` : "N/A"}`
-          : "No analyst data";
+      // Analyst line
+      const noAnalystCoverage =
+        s.analyst_consensus === null && s.price_target === null;
+      const analystStr = noAnalystCoverage
+        ? "No institutional coverage found — small-cap/micro-cap with limited analyst following"
+        : [
+            s.analyst_consensus ?? "No consensus data",
+            s.price_target !== null
+              ? `Price Target: $${s.price_target.toFixed(2)} avg${s.price_target_high ? ` (range $${s.price_target_low?.toFixed(2)} — $${s.price_target_high?.toFixed(2)})` : ""}${s.upside_pct !== null ? ` — ${s.upside_pct >= 0 ? "+" : ""}${s.upside_pct.toFixed(1)}% ${s.upside_pct >= 0 ? "upside" : "downside"} from current` : ""}`
+              : "Price Target: N/A",
+          ].join(" | ");
 
-      return [
+      // Basic metrics line
+      const metricParts: string[] = [];
+      if (s.metrics.week52High !== null && s.metrics.week52Low !== null) {
+        metricParts.push(
+          `52-Wk: $${s.metrics.week52Low.toFixed(2)} — $${s.metrics.week52High.toFixed(2)}`
+        );
+      }
+      if (s.metrics.peRatio !== null) {
+        metricParts.push(`P/E: ${s.metrics.peRatio.toFixed(1)}`);
+      }
+      if (s.metrics.revenueGrowthTTMYoy !== null) {
+        const pct = s.metrics.revenueGrowthTTMYoy * 100;
+        metricParts.push(
+          `Rev Growth (YoY): ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`
+        );
+      }
+      const metricsStr =
+        metricParts.length > 0 ? metricParts.join(" | ") : null;
+
+      const lines = [
         `${s.ticker} - ${s.company_name}`,
         `Shares: ${s.shares} | Avg Buy: $${Number(s.avg_buy_price).toFixed(2)} | Current: ${price} | P&L: ${pnlStr}`,
+        metricsStr ? `Fundamentals: ${metricsStr}` : null,
         `Next Earnings: ${earningsStr}`,
         `Last Quarter: ${lastQStr}`,
         `Next Quarter Estimates: ${nextQStr}`,
         `Analyst Consensus: ${analystStr}`,
         "---",
-      ].join("\n");
+      ];
+
+      return lines.filter(Boolean).join("\n");
     })
     .join("\n");
 
@@ -317,9 +431,9 @@ ${stockLines}
 Total Portfolio Value: $${currentValue.toFixed(2)} | Total P&L: ${totalPnlDollars >= 0 ? "+" : ""}$${Math.abs(totalPnlDollars).toFixed(2)} (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%)
 
 Return ONLY a valid JSON object with exactly these keys:
-- "canary_warnings": array of objects — each with {"message": string, "severity": "red"|"yellow"|"green"} — red for urgent risks, yellow for moderate watch items, green for positive signals (empty array if truly none)
+- "canary_warnings": array of objects — each {"message": string, "severity": "red"|"yellow"|"green"} — red for urgent risks (earnings imminent, big losses, no coverage), yellow for moderate watch items, green for positive signals (empty array if truly none)
 - "market_context": string — 2-3 sentences of relevant sector/market context for these holdings
-- "outlook": array of strings — one per stock, format: "TICKER: forward-looking note referencing specific data"
+- "outlook": array of strings — one per stock, format: "TICKER: specific forward-looking note referencing actual data from the briefing"
 - "disclaimer": string — brief financial disclaimer`;
 
   // ── Call Claude ────────────────────────────────────────────────────────────
@@ -362,7 +476,7 @@ Return ONLY a valid JSON object with exactly these keys:
     );
   }
 
-  // ── Normalize warnings (handle string[] fallback) ──────────────────────────
+  // ── Normalize warnings ─────────────────────────────────────────────────────
 
   const validSeverities = new Set(["red", "yellow", "green"]);
   const canaryWarnings: AIWarning[] = Array.isArray(aiResult.canary_warnings)
@@ -378,7 +492,7 @@ Return ONLY a valid JSON object with exactly these keys:
       })
     : [];
 
-  // ── Compose final briefing content ─────────────────────────────────────────
+  // ── Compose briefing content ───────────────────────────────────────────────
 
   const briefingContent = {
     portfolio_snapshot: {
@@ -421,7 +535,6 @@ Return ONLY a valid JSON object with exactly these keys:
     );
   }
 
-  // Increment usage
   await supabase
     .from("profiles")
     .update({ briefings_used: briefingsUsed + 1 })
