@@ -1,6 +1,12 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
+
+const INTRO_KEY = "canary-intro-played";
 
 // ─── Hero mock watchlist ───────────────────────────────────────────────────
 
@@ -184,7 +190,7 @@ function PricingCard({
         href={ctaHref}
         className={`text-center py-3 px-6 rounded-lg font-body font-semibold text-sm transition-all duration-150 ${
           highlighted
-            ? "bg-canary text-text-primary hover:bg-canary-dark"
+            ? "btn-primary"
             : "bg-transparent border border-border text-text-primary hover:border-text-secondary"
         }`}
       >
@@ -197,13 +203,52 @@ function PricingCard({
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const reduce = useReducedMotion();
+  const [introDone, setIntroDone] = useState(false);
+  const [introEnabled, setIntroEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasPlayed = sessionStorage.getItem(INTRO_KEY) === "1";
+    if (hasPlayed || reduce) {
+      setIntroEnabled(false);
+      setIntroDone(true);
+      sessionStorage.setItem(INTRO_KEY, "1");
+    } else {
+      setIntroEnabled(true);
+    }
+  }, [reduce]);
+
+  function handleIntroDone() {
+    setIntroDone(true);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(INTRO_KEY, "1");
+    }
+  }
+
+  const heroAnimate = introDone
+    ? { opacity: 1, y: 0 }
+    : { opacity: 0, y: 24 };
+
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      {introEnabled === null ? (
+        <div className="sticky top-0 z-50 bg-background border-b border-border h-16" />
+      ) : (
+        <Navbar
+          enableIntro={introEnabled === true}
+          onIntroDone={handleIntroDone}
+        />
+      )}
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
+        <motion.div
+          initial={introEnabled === false ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+          animate={heroAnimate}
+          transition={{ duration: 0.6, ease: "easeOut", delay: introEnabled ? 0.1 : 0 }}
+          className="grid lg:grid-cols-2 gap-16 items-center"
+        >
           {/* Copy */}
           <div className="flex flex-col gap-8">
             <div>
@@ -276,7 +321,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* ── Divider ──────────────────────────────────────────────────────── */}

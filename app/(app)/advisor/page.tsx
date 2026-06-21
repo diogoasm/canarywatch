@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
+import CountUp from "@/components/CountUp";
 import type { Profile } from "@/types";
 
 // ─── Local types ───────────────────────────────────────────────────────────
@@ -218,30 +220,32 @@ function SnapshotCard({ snapshot }: { snapshot: PortfolioSnapshot }) {
           <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
             Total Value
           </p>
-          <p className="font-mono text-lg font-bold text-text-primary">
-            ${fmt(snapshot.total_value)}
-          </p>
+          <CountUp
+            value={snapshot.total_value}
+            prefix="$"
+            className="font-mono text-lg font-bold text-text-primary"
+          />
         </div>
 
         <div className="p-4 bg-background rounded-lg">
           <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
             Total P&amp;L
           </p>
-          <p
+          <CountUp
+            value={Math.abs(snapshot.total_pnl_dollars)}
+            prefix={pnlUp ? "+$" : "-$"}
             className={`font-mono text-lg font-bold ${
               pnlUp ? "text-positive" : "text-urgent"
             }`}
-          >
-            {pnlUp ? "+" : "-"}${fmt(Math.abs(snapshot.total_pnl_dollars))}
-          </p>
-          <p
-            className={`font-mono text-xs ${
+          />
+          <CountUp
+            value={snapshot.total_pnl_percent}
+            prefix={pnlUp ? "+" : ""}
+            suffix="%"
+            className={`font-mono text-xs block ${
               pnlUp ? "text-positive" : "text-urgent"
             }`}
-          >
-            {pnlUp ? "+" : ""}
-            {fmt(snapshot.total_pnl_percent)}%
-          </p>
+          />
         </div>
 
         <div className="p-4 bg-background rounded-lg">
@@ -400,7 +404,7 @@ function WarningsCard({ warnings }: { warnings: WarningEntry[] }) {
         {normalized.map((w, i) => (
           <li key={i} className="flex items-start gap-2.5">
             <div className="shrink-0 mt-0.5">
-              <CanaryIcon status={w.severity} size={16} />
+              <CanaryIcon status={w.severity} size={16} glow={w.severity === "red"} />
             </div>
             <p className="font-body text-sm text-text-primary leading-relaxed">
               {w.message}
@@ -464,6 +468,29 @@ function OutlookCard({ outlook }: { outlook: string[] }) {
 
 // ─── Full briefing display ─────────────────────────────────────────────────
 
+function RevealCard({
+  index,
+  children,
+}: {
+  index: number;
+  children: React.ReactNode;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: reduce ? 0 : 0.5,
+        ease: "easeOut",
+        delay: reduce ? 0 : index * 0.15,
+      }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function BriefingDisplay({
   briefing,
   canRegenerate,
@@ -492,11 +519,21 @@ function BriefingDisplay({
         )}
       </div>
 
-      <SnapshotCard snapshot={c.portfolio_snapshot} />
-      <KeyDatesCard dates={c.key_dates} />
-      <WarningsCard warnings={c.canary_warnings} />
-      <MarketContextCard context={c.market_context} />
-      <OutlookCard outlook={c.outlook} />
+      <RevealCard index={0}>
+        <SnapshotCard snapshot={c.portfolio_snapshot} />
+      </RevealCard>
+      <RevealCard index={1}>
+        <KeyDatesCard dates={c.key_dates} />
+      </RevealCard>
+      <RevealCard index={2}>
+        <WarningsCard warnings={c.canary_warnings} />
+      </RevealCard>
+      <RevealCard index={3}>
+        <MarketContextCard context={c.market_context} />
+      </RevealCard>
+      <RevealCard index={4}>
+        <OutlookCard outlook={c.outlook} />
+      </RevealCard>
 
       <p className="font-body text-xs text-text-secondary text-center px-4 pb-4 leading-relaxed">
         {c.disclaimer ||
@@ -639,11 +676,21 @@ export default function AdvisorPage() {
       ) : generating ? (
         <GeneratingState />
       ) : briefing ? (
-        <BriefingDisplay
-          briefing={briefing}
-          canRegenerate={canRegenerate}
-          onRegenerate={handleGenerate}
-        />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={briefing.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <BriefingDisplay
+              briefing={briefing}
+              canRegenerate={canRegenerate}
+              onRegenerate={handleGenerate}
+            />
+          </motion.div>
+        </AnimatePresence>
       ) : profile ? (
         <GenerateCard profile={profile} onGenerate={handleGenerate} />
       ) : (

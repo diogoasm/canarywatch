@@ -1,13 +1,15 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import type { CanaryStatus } from "@/types";
-import { getCanaryColor, getCanaryLabel } from "@/lib/utils";
+import { getCanaryLabel } from "@/lib/utils";
 
 interface CanaryIconProps {
   status?: CanaryStatus;
   size?: number;
   showLabel?: boolean;
   className?: string;
+  glow?: boolean;
 }
 
 const statusColors: Record<CanaryStatus, string> = {
@@ -22,64 +24,103 @@ export default function CanaryIcon({
   size = 20,
   showLabel = false,
   className = "",
+  glow = false,
 }: CanaryIconProps) {
   const color = statusColors[status];
   const label = getCanaryLabel(status);
+  const reduce = useReducedMotion();
+
+  const pulsing = !reduce && (status === "red" || status === "yellow" || status === "green");
+  const pulseDuration = status === "red" ? 1.5 : 3;
+  const glowing = glow && status === "red" && !reduce;
+
+  const animateProps: Record<string, (number | string)[]> = {};
+  const transitionProps: Record<string, object> = {};
+
+  if (pulsing) {
+    animateProps.scale = [1, 1.08, 1];
+    transitionProps.scale = {
+      duration: pulseDuration,
+      repeat: Infinity,
+      ease: "easeInOut",
+    };
+  }
+  if (glowing) {
+    animateProps.boxShadow = [
+      "0 0 0px rgba(224,59,59,0)",
+      "0 0 8px rgba(224,59,59,0.4)",
+      "0 0 0px rgba(224,59,59,0)",
+    ];
+    transitionProps.boxShadow = {
+      duration: 2,
+      repeat: Infinity,
+      ease: "easeInOut",
+    };
+  }
+
+  const hasAnimation = pulsing || glowing;
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 ${className}`}
       title={label}
     >
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-label={`${label} canary`}
+      <motion.span
+        className="inline-flex"
+        style={{ borderRadius: "50%" }}
+        animate={hasAnimation ? animateProps : undefined}
+        transition={hasAnimation ? transitionProps : undefined}
       >
-        {/* Body */}
-        <ellipse cx="12" cy="13" rx="6" ry="5" fill={color} />
-        {/* Head */}
-        <circle cx="15.5" cy="8.5" r="3.5" fill={color} />
-        {/* Wing detail */}
-        <ellipse cx="9" cy="13" rx="3.5" ry="2.5" fill={color} opacity="0.7" />
-        {/* Beak */}
-        <polygon points="18.5,8 21,9 18.5,10" fill="#1A1A1A" opacity="0.4" />
-        {/* Eye */}
-        <circle cx="16.5" cy="7.8" r="0.8" fill="#1A1A1A" opacity="0.6" />
-        {/* Tail */}
-        <path
-          d="M6 15 Q4 17 3 20 Q5 18 7 17"
-          stroke={color}
-          strokeWidth="1.5"
-          strokeLinecap="round"
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 24 24"
           fill="none"
-          opacity="0.8"
-        />
-        {/* Legs */}
-        <line
-          x1="11"
-          y1="18"
-          x2="10"
-          y2="21"
-          stroke={color}
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-        <line
-          x1="13"
-          y1="18"
-          x2="14"
-          y2="21"
-          stroke={color}
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-      </svg>
+          xmlns="http://www.w3.org/2000/svg"
+          aria-label={`${label} canary`}
+        >
+          {/* Body */}
+          <ellipse cx="12" cy="13" rx="6" ry="5" fill={color} />
+          {/* Head */}
+          <circle cx="15.5" cy="8.5" r="3.5" fill={color} />
+          {/* Wing detail */}
+          <ellipse cx="9" cy="13" rx="3.5" ry="2.5" fill={color} opacity="0.7" />
+          {/* Beak */}
+          <polygon points="18.5,8 21,9 18.5,10" fill="#1A1A1A" opacity="0.4" />
+          {/* Eye */}
+          <circle cx="16.5" cy="7.8" r="0.8" fill="#1A1A1A" opacity="0.6" />
+          {/* Tail */}
+          <path
+            d="M6 15 Q4 17 3 20 Q5 18 7 17"
+            stroke={color}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            fill="none"
+            opacity="0.8"
+          />
+          {/* Legs */}
+          <line
+            x1="11"
+            y1="18"
+            x2="10"
+            y2="21"
+            stroke={color}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            opacity="0.6"
+          />
+          <line
+            x1="13"
+            y1="18"
+            x2="14"
+            y2="21"
+            stroke={color}
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            opacity="0.6"
+          />
+        </svg>
+      </motion.span>
       {showLabel && (
         <span
           className="text-xs font-body font-medium"

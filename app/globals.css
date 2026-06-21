@@ -48,7 +48,20 @@
 
   .btn-primary {
     @apply bg-canary text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
-           hover:bg-canary-dark transition-colors duration-150 cursor-pointer;
+           hover:bg-canary-dark cursor-pointer;
+    transition: transform 150ms ease-out, background-color 150ms ease-out,
+                box-shadow 150ms ease-out;
+    will-change: transform;
+  }
+
+  .btn-primary:hover {
+    transform: scale(1.03);
+    box-shadow: 0 6px 14px -4px rgba(245, 200, 66, 0.45);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.97);
+    transition-duration: 80ms;
   }
 
   .btn-outline {
@@ -66,5 +79,39 @@
 
   .data-number {
     @apply font-mono text-text-primary;
+  }
+
+  .price-flash-up {
+    animation: priceFlashUp 400ms ease-out;
+  }
+
+  .price-flash-down {
+    animation: priceFlashDown 400ms ease-out;
+  }
+}
+
+@keyframes priceFlashUp {
+  0% { color: inherit; }
+  30% { color: #2D9E6B; }
+  100% { color: inherit; }
+}
+
+@keyframes priceFlashDown {
+  0% { color: inherit; }
+  30% { color: #E03B3B; }
+  100% { color: inherit; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .btn-primary:hover,
+  .btn-primary:active {
+    transform: none !important;
   }
 }

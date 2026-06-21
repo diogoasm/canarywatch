@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon from "@/components/CanaryIcon";
+import CountUp from "@/components/CountUp";
 import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
 import { calculatePnL, daysUntil } from "@/lib/utils";
 
@@ -93,14 +95,21 @@ function SkeletonRow() {
 // ─── Empty state ───────────────────────────────────────────────────────────
 
 function EmptyState() {
+  const reduce = useReducedMotion();
   return (
     <div className="flex flex-col items-center justify-center py-20 px-4 gap-4">
-      <svg
+      <motion.svg
         width="52"
         height="52"
         viewBox="0 0 24 24"
         fill="none"
         className="opacity-20"
+        animate={reduce ? undefined : { y: [0, -8, 0] }}
+        transition={
+          reduce
+            ? undefined
+            : { duration: 2, repeat: Infinity, ease: "easeInOut" }
+        }
       >
         <ellipse cx="12" cy="13" rx="6" ry="5" fill="#6B6B6B" />
         <circle cx="15.5" cy="8.5" r="3.5" fill="#6B6B6B" />
@@ -114,7 +123,7 @@ function EmptyState() {
           strokeLinecap="round"
           fill="none"
         />
-      </svg>
+      </motion.svg>
       <div className="text-center">
         <h3 className="font-display text-xl text-text-primary mb-1">
           Your watchlist is empty
@@ -383,11 +392,14 @@ function WatchlistRow({
   item,
   quote,
   onDelete,
+  index,
 }: {
   item: WatchlistItem;
   quote: QuoteData | null | "loading";
   onDelete: (id: string) => void;
+  index: number;
 }) {
+  const reduce = useReducedMotion();
   const isLoading = quote === "loading";
   // quote.price can be undefined when the API returns an error object (no price field)
   // Use != null to catch both null and undefined, and filter out NaN
@@ -411,8 +423,33 @@ function WatchlistRow({
   const tooltip =
     pnl ? resolveCanaryTooltip(pnl.percent, earningsDate) : "Fetching data…";
 
+  // Trigger a brief colour flash on the first successful price load.
+  const wasLoadingRef = useRef(isLoading);
+  const [flashClass, setFlashClass] = useState<string>("");
+  useEffect(() => {
+    if (wasLoadingRef.current && !isLoading && price !== null && !reduce) {
+      const cls =
+        changePercent !== null && changePercent < 0
+          ? "price-flash-down"
+          : "price-flash-up";
+      setFlashClass(cls);
+      const t = setTimeout(() => setFlashClass(""), 420);
+      return () => clearTimeout(t);
+    }
+    wasLoadingRef.current = isLoading;
+  }, [isLoading, price, changePercent, reduce]);
+
   return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-white/50 transition-colors group">
+    <motion.div
+      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: reduce ? 0 : 0.4,
+        ease: "easeOut",
+        delay: reduce ? 0 : index * 0.08,
+      }}
+      className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-white/50 transition-colors group"
+    >
       {/* Canary status */}
       <div className="shrink-0 w-6">
         {isLoading ? (
@@ -438,7 +475,7 @@ function WatchlistRow({
           <div className="h-3.5 bg-border rounded w-14 ml-auto animate-pulse" />
         ) : price !== null ? (
           <>
-            <p className="font-mono text-sm text-text-primary">
+            <p className={`font-mono text-sm text-text-primary ${flashClass}`}>
               ${price.toFixed(2)}
             </p>
             {changePercent !== null && changePercent !== 0 && (
@@ -523,7 +560,7 @@ function WatchlistRow({
           />
         </svg>
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -694,18 +731,26 @@ export default function WatchlistPage() {
 
         {hasLiveData && items.length > 0 && (
           <div className="text-left sm:text-right">
-            <p className="font-mono text-xl font-bold text-text-primary">
-              ${totals.currentValue.toFixed(2)}
-            </p>
+            <CountUp
+              value={totals.currentValue}
+              prefix="$"
+              className="font-mono text-xl font-bold text-text-primary"
+            />
             <p
               className={`font-mono text-sm font-semibold ${
                 totalPnL >= 0 ? "text-positive" : "text-urgent"
               }`}
             >
-              {totalPnL >= 0 ? "+" : "-"}${Math.abs(totalPnL).toFixed(2)}{" "}
+              <CountUp
+                value={Math.abs(totalPnL)}
+                prefix={totalPnL >= 0 ? "+$" : "-$"}
+              />{" "}
               <span className="text-xs font-normal">
-                ({totalPnLPct >= 0 ? "+" : ""}
-                {totalPnLPct.toFixed(2)}%)
+                (<CountUp
+                  value={totalPnLPct}
+                  prefix={totalPnLPct >= 0 ? "+" : ""}
+                  suffix="%"
+                />)
               </span>
             </p>
           </div>
@@ -745,14 +790,17 @@ export default function WatchlistPage() {
         ) : (
           <>
             <ColumnHeaders />
-            {items.map((item) => (
-              <WatchlistRow
-                key={item.id}
-                item={item}
-                quote={quotes[item.ticker] ?? null}
-                onDelete={handleDelete}
-              />
-            ))}
+            <AnimatePresence initial={true}>
+              {items.map((item, index) => (
+                <WatchlistRow
+                  key={item.id}
+                  item={item}
+                  quote={quotes[item.ticker] ?? null}
+                  onDelete={handleDelete}
+                  index={index}
+                />
+              ))}
+            </AnimatePresence>
           </>
         )}
       </div>
