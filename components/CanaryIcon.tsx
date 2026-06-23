@@ -133,7 +133,13 @@ export default function CanaryIcon({
   );
 }
 
-export function CanaryLogoIcon({ size = 24 }: { size?: number }) {
+export function CanaryLogoIcon({
+  size = 24,
+  color = "#F5C842",
+}: {
+  size?: number;
+  color?: string;
+}) {
   return (
     <svg
       width={size}
@@ -142,14 +148,14 @@ export function CanaryLogoIcon({ size = 24 }: { size?: number }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <ellipse cx="12" cy="13" rx="6" ry="5" fill="#F5C842" />
-      <circle cx="15.5" cy="8.5" r="3.5" fill="#F5C842" />
-      <ellipse cx="9" cy="13" rx="3.5" ry="2.5" fill="#F5C842" opacity="0.7" />
+      <ellipse cx="12" cy="13" rx="6" ry="5" fill={color} />
+      <circle cx="15.5" cy="8.5" r="3.5" fill={color} />
+      <ellipse cx="9" cy="13" rx="3.5" ry="2.5" fill={color} opacity="0.7" />
       <polygon points="18.5,8 21,9 18.5,10" fill="#1A1A1A" opacity="0.5" />
       <circle cx="16.5" cy="7.8" r="0.8" fill="#1A1A1A" opacity="0.7" />
       <path
         d="M6 15 Q4 17 3 20 Q5 18 7 17"
-        stroke="#F5C842"
+        stroke={color}
         strokeWidth="1.5"
         strokeLinecap="round"
         fill="none"

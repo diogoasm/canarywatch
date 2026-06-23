@@ -143,94 +143,6 @@ function FeatureCard({
   );
 }
 
-// ─── Pricing cards ─────────────────────────────────────────────────────────
-
-function PricingCard({
-  plan,
-  price,
-  period,
-  features,
-  cta,
-  ctaHref,
-  highlighted,
-  altPrice,
-}: {
-  plan: string;
-  price: string;
-  period: string;
-  features: string[];
-  cta: string;
-  ctaHref: string;
-  highlighted?: boolean;
-  altPrice?: string;
-}) {
-  return (
-    <div
-      className={`card p-8 flex flex-col gap-6 ${
-        highlighted
-          ? "border-canary border-2 shadow-card-canary"
-          : ""
-      }`}
-    >
-      <div>
-        <p className="font-body text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
-          {plan}
-        </p>
-        <div className="flex items-baseline gap-1">
-          <span className="font-display text-4xl font-bold text-text-primary">
-            {price}
-          </span>
-          <span className="font-body text-text-secondary text-sm">
-            {period}
-          </span>
-        </div>
-        {altPrice && (
-          <p className="font-body text-xs text-text-secondary mt-1">
-            {altPrice}
-          </p>
-        )}
-      </div>
-
-      <ul className="flex flex-col gap-3">
-        {features.map((feature) => (
-          <li key={feature} className="flex items-start gap-2.5">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              className="mt-0.5 shrink-0"
-            >
-              <circle cx="8" cy="8" r="8" fill="#F5C842" opacity="0.15" />
-              <path
-                d="M5 8l2 2 4-4"
-                stroke="#D4A800"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span className="font-body text-sm text-text-primary">
-              {feature}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <Link
-        href={ctaHref}
-        className={`text-center py-3 px-6 rounded-lg font-body font-semibold text-sm transition-all duration-150 ${
-          highlighted
-            ? "btn-primary"
-            : "bg-transparent border border-border text-text-primary hover:border-text-secondary"
-        }`}
-      >
-        {cta}
-      </Link>
-    </div>
-  );
-}
-
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
@@ -286,12 +198,17 @@ export default function LandingPage() {
               <Link href="/signup" className="btn-primary text-base px-7 py-3">
                 Get Started Free
               </Link>
-              <Link
-                href="#features"
+              <button
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById("features")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
                 className="btn-outline text-base px-7 py-3"
               >
                 See how it works
-              </Link>
+              </button>
             </div>
 
             <div className="flex items-center gap-6 pt-2">
@@ -352,12 +269,34 @@ export default function LandingPage() {
         className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24"
       >
         <div className="text-center mb-14">
-          <h2 className="section-heading mb-4">
-            Everything you need to stay ahead.
-          </h2>
-          <p className="section-subheading max-w-xl mx-auto">
-            Built for retail traders who want intelligence without the noise.
-          </p>
+          <div>
+            <div className="relative inline-block">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute z-0"
+                style={{ bottom: -20, right: -30, opacity: 0.07 }}
+              >
+                <CanaryLogoIcon size={120} color="#2D9E6B" />
+              </span>
+              <h2 className="section-heading mb-4 relative z-[1]">
+                Everything you need to stay ahead.
+              </h2>
+            </div>
+          </div>
+          <div>
+            <div className="relative inline-block">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute z-0"
+                style={{ bottom: -20, left: -30, opacity: 0.07 }}
+              >
+                <CanaryLogoIcon size={120} color="#E03B3B" />
+              </span>
+              <p className="section-subheading max-w-xl mx-auto relative z-[1]">
+                Built for retail traders who want intelligence without the noise.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
@@ -424,54 +363,6 @@ export default function LandingPage() {
             }
             title="Your Numbers, Not Guesses"
             description="Canary calculates your real P&L, percentage gains and risk based on what you actually paid and how many shares you hold."
-          />
-        </div>
-      </section>
-
-      {/* ── Divider ──────────────────────────────────────────────────────── */}
-      <div className="border-t border-border" />
-
-      {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section
-        id="pricing"
-        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24"
-      >
-        <div className="text-center mb-14">
-          <h2 className="section-heading mb-4">
-            Simple pricing. No surprises.
-          </h2>
-          <p className="section-subheading max-w-md mx-auto">
-            Start free. Upgrade when you need more.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-          <PricingCard
-            plan="Free"
-            price="€0"
-            period="/ month"
-            features={[
-              "Watchlist up to 5 stocks",
-              "2 AI briefings per month",
-              "Canary warning system",
-            ]}
-            cta="Get Started Free"
-            ctaHref="/signup"
-          />
-          <PricingCard
-            plan="Premium"
-            price="€9.99"
-            period="/ month"
-            altPrice="or €79 / year — save 34%"
-            features={[
-              "Unlimited stocks",
-              "Unlimited AI briefings",
-              "Single-stock deep dive briefings",
-              "Priority canary alerts",
-            ]}
-            cta="Start Premium"
-            ctaHref="/signup?plan=premium"
-            highlighted
           />
         </div>
       </section>
