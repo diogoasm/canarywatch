@@ -7,7 +7,7 @@ import { CanaryLogoIcon } from "./CanaryIcon";
 
 export default function Navbar() {
   useEffect(() => {
-    console.log("navbar mounted");
+    console.log("navbar is interactive");
   }, []);
 
   return (

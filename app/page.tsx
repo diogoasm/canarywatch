@@ -30,7 +30,7 @@ function FlyingCanaryOverlay({ onDone }: { onDone: () => void }) {
           rotate: [-8, 6, -4],
           y: [0, -24, 0],
         }}
-        transition={{ duration: 1.6, ease: "easeInOut", times: [0, 0.15, 1] }}
+        transition={{ duration: 1.6, ease: "easeInOut" }}
         onAnimationComplete={onDone}
       >
         <CanaryLogoIcon size={88} />
@@ -148,6 +148,10 @@ function FeatureCard({
 export default function LandingPage() {
   const reduce = useReducedMotion();
   const [showIntro, setShowIntro] = useState(false);
+
+  useEffect(() => {
+    console.log("page is interactive");
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
