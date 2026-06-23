@@ -19,8 +19,7 @@
       "Bash(npx tsc *)",
       "Bash(curl *)",
       "Bash(npx next *)",
-      "Bash(git commit -m 'Fix landing page layout broken by animation — restore navbar and hero *)",
-      "Bash(git commit -m 'Landing page redesign — editorial minimal layout, flying canary, scroll reveals *)"
+      "Bash(git commit -m 'Fix landing page layout broken by animation — restore navbar and hero *)"
     ]
   }
 }
