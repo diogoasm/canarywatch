@@ -24,7 +24,9 @@
       "Bash(git revert *)",
       "Bash(git stash *)",
       "Bash(git commit -m 'Revert landing page to previous working version *)",
-      "Bash(git commit -m 'Landing page — fix redirects, remove pricing, head bob animation, navbar font, canary watermarks *)"
+      "Bash(git commit -m 'Landing page — fix redirects, remove pricing, head bob animation, navbar font, canary watermarks *)",
+      "Bash(npm list *)",
+      "Bash(git commit -m 'Fix button redirects, hero text size, canary animation *)"
     ]
   }
 }

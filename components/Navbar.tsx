@@ -1,11 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { CanaryLogoIcon } from "./CanaryIcon";
 
 export default function Navbar() {
-  const reduce = useReducedMotion();
+  useEffect(() => {
+    console.log("navbar mounted");
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 bg-background border-b border-border">
@@ -14,15 +17,14 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <motion.div
-              className="inline-flex"
-              style={{ transformOrigin: "60% 75%" }}
-              animate={reduce ? undefined : { rotate: [0, -8, 0] }}
+              animate={{ rotate: [0, -8, 0] }}
               transition={{
                 duration: 2.5,
                 ease: "easeInOut",
                 repeat: Infinity,
                 repeatDelay: 1.5,
               }}
+              style={{ transformOrigin: "60% 75%", display: "inline-block" }}
             >
               <CanaryLogoIcon size={26} />
             </motion.div>
@@ -55,8 +57,8 @@ export default function Navbar() {
             >
               Login
             </Link>
-            <Link href="/signup" className="btn-primary text-sm">
-              Get Started
+            <Link href="/signup">
+              <button className="btn-primary text-sm">Get Started</button>
             </Link>
           </div>
         </div>

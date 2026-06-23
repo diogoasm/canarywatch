@@ -183,19 +183,19 @@ export default function LandingPage() {
           {/* Copy */}
           <div className="flex flex-col gap-8">
             <div>
-              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-bold text-text-primary leading-tight tracking-tight mb-6">
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight tracking-tight mb-5">
                 Know before
                 <br />
                 it moves.
               </h1>
-              <p className="font-body text-lg text-text-secondary leading-relaxed max-w-lg">
+              <p className="font-body text-base text-text-secondary leading-relaxed max-w-md">
                 Canary watches your portfolio and warns you before earnings,
                 crashes, and key events — so you never miss what matters.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Link href="/signup" className="btn-primary text-base px-7 py-3">
+              <Link href="/signup" className="btn-primary text-sm px-6 py-2.5">
                 Get Started Free
               </Link>
               <button
@@ -205,7 +205,7 @@ export default function LandingPage() {
                     .getElementById("features")
                     ?.scrollIntoView({ behavior: "smooth" })
                 }
-                className="btn-outline text-base px-7 py-3"
+                className="btn-outline text-sm px-6 py-2.5"
               >
                 See how it works
               </button>
