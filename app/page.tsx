@@ -2,11 +2,42 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 
 const INTRO_KEY = "canary-intro-played";
+
+// ─── Flying canary intro overlay ────────────────────────────────────────────
+// A self-contained fixed overlay that flies the canary across the screen once,
+// then unmounts. It sits ON TOP of the page (which renders normally beneath it)
+// and never affects layout — pointer-events are disabled so it can't block UI.
+
+function FlyingCanaryOverlay({ onDone }: { onDone: () => void }) {
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] pointer-events-none flex items-center"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div
+        className="absolute top-1/2"
+        initial={{ x: "-15vw", opacity: 0, rotate: -8 }}
+        animate={{
+          x: ["-15vw", "55vw", "115vw"],
+          opacity: [0, 1, 1, 0],
+          rotate: [-8, 6, -4],
+          y: [0, -24, 0],
+        }}
+        transition={{ duration: 1.6, ease: "easeInOut", times: [0, 0.15, 1] }}
+        onAnimationComplete={onDone}
+      >
+        <CanaryLogoIcon size={88} />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 // ─── Hero mock watchlist ───────────────────────────────────────────────────
 
@@ -204,49 +235,37 @@ function PricingCard({
 
 export default function LandingPage() {
   const reduce = useReducedMotion();
-  const [introDone, setIntroDone] = useState(false);
-  const [introEnabled, setIntroEnabled] = useState<boolean | null>(null);
+  const [showIntro, setShowIntro] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const hasPlayed = sessionStorage.getItem(INTRO_KEY) === "1";
-    if (hasPlayed || reduce) {
-      setIntroEnabled(false);
-      setIntroDone(true);
-      sessionStorage.setItem(INTRO_KEY, "1");
-    } else {
-      setIntroEnabled(true);
+    if (!hasPlayed && !reduce) {
+      setShowIntro(true);
     }
+    sessionStorage.setItem(INTRO_KEY, "1");
   }, [reduce]);
 
   function handleIntroDone() {
-    setIntroDone(true);
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(INTRO_KEY, "1");
-    }
+    setShowIntro(false);
   }
-
-  const heroAnimate = introDone
-    ? { opacity: 1, y: 0 }
-    : { opacity: 0, y: 24 };
 
   return (
     <div className="min-h-screen bg-background">
-      {introEnabled === null ? (
-        <div className="sticky top-0 z-50 bg-background border-b border-border h-16" />
-      ) : (
-        <Navbar
-          enableIntro={introEnabled === true}
-          onIntroDone={handleIntroDone}
-        />
-      )}
+      {/* Flying canary intro — a fixed overlay above the page; the layout below
+          (navbar, hero, content) always renders normally and is unaffected. */}
+      <AnimatePresence>
+        {showIntro && <FlyingCanaryOverlay onDone={handleIntroDone} />}
+      </AnimatePresence>
+
+      <Navbar />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
         <motion.div
-          initial={introEnabled === false ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
-          animate={heroAnimate}
-          transition={{ duration: 0.6, ease: "easeOut", delay: introEnabled ? 0.1 : 0 }}
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           className="grid lg:grid-cols-2 gap-16 items-center"
         >
           {/* Copy */}

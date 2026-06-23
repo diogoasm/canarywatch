@@ -14,7 +14,12 @@
       "Bash(gh repo *)",
       "Bash(git remote *)",
       "Bash(git push *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git rm *)",
+      "Bash(npx tsc *)",
+      "Bash(curl *)",
+      "Bash(npx next *)",
+      "Bash(git commit -m 'Fix landing page layout broken by animation — restore navbar and hero *)"
     ]
   }
 }
