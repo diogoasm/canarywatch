@@ -21,13 +21,13 @@ export default function Navbar() {
           {/* Center nav links */}
           <div className="hidden md:flex items-center gap-8">
             <Link
-              href="#features"
+              href="#story"
               className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
             >
-              Features
+              How it works
             </Link>
             <Link
-              href="#pricing"
+              href="/pricing"
               className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
             >
               Pricing
@@ -35,7 +35,7 @@ export default function Navbar() {
           </div>
 
           {/* Right CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Link
               href="/login"
               className="font-body text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
