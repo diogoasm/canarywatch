@@ -40,6 +40,55 @@ const navLinks: NavLink[] = [
     ),
   },
   {
+    href: "/valuation",
+    label: "Valuation",
+    icon: (active) => (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <rect
+          x="1.5"
+          y="1.5"
+          width="14"
+          height="14"
+          rx="2"
+          stroke={active ? "#1A1A1A" : "#6B6B6B"}
+          strokeWidth="1.3"
+        />
+        <path
+          d="M4.5 10.5l2.5-2.5 2 2 3.5-4"
+          stroke={active ? "#1A1A1A" : "#6B6B6B"}
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M4.5 13.5h8"
+          stroke={active ? "#1A1A1A" : "#6B6B6B"}
+          strokeWidth="1.3"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/learn",
+    label: "Research Guide",
+    icon: (active) => (
+      <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+        <path
+          d="M8.5 3.5C7.2 2.4 5.4 2 3 2v11.5c2.4 0 4.2.4 5.5 1.5 1.3-1.1 3.1-1.5 5.5-1.5V2c-2.4 0-4.2.4-5.5 1.5z"
+          stroke={active ? "#1A1A1A" : "#6B6B6B"}
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M8.5 3.5V15"
+          stroke={active ? "#1A1A1A" : "#6B6B6B"}
+          strokeWidth="1.3"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: (active) => (

@@ -36,13 +36,13 @@ export default function Navbar() {
           {/* Center nav links */}
           <div className="hidden md:flex items-center gap-8">
             <Link
-              href="#features"
+              href="/#features"
               className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
             >
               Features
             </Link>
             <Link
-              href="#pricing"
+              href="/pricing"
               className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
             >
               Pricing

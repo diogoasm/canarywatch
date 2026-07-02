@@ -31,6 +31,55 @@ const links = [
     ),
   },
   {
+    href: "/valuation",
+    label: "Valuation",
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect
+          x="2.5"
+          y="2.5"
+          width="17"
+          height="17"
+          rx="2.5"
+          stroke={active ? "#1A1A1A" : "#9CA3AF"}
+          strokeWidth="1.4"
+        />
+        <path
+          d="M6 13.5l3-3 2.5 2.5 4.5-5"
+          stroke={active ? "#1A1A1A" : "#9CA3AF"}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6 17h10"
+          stroke={active ? "#1A1A1A" : "#9CA3AF"}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    ),
+  },
+  {
+    href: "/learn",
+    label: "Learn",
+    icon: (active: boolean) => (
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path
+          d="M11 4.5C9.3 3.1 7 2.5 4 2.5v14.5c3 0 5.3.6 7 2 1.7-1.4 4-2 7-2V2.5c-3 0-5.3.6-7 2z"
+          stroke={active ? "#1A1A1A" : "#9CA3AF"}
+          strokeWidth="1.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M11 4.5V19"
+          stroke={active ? "#1A1A1A" : "#9CA3AF"}
+          strokeWidth="1.4"
+        />
+      </svg>
+    ),
+  },
+  {
     href: "/settings",
     label: "Settings",
     icon: (active: boolean) => (
@@ -65,7 +114,7 @@ export default function BottomNav() {
             <Link
               key={link.href}
               href={link.href}
-              className="flex flex-col items-center gap-1 px-6 py-2"
+              className="flex flex-col items-center gap-1 px-3 py-2"
             >
               {link.icon(active)}
               <span

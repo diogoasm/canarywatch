@@ -34,7 +34,14 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const protectedRoutes = ["/watchlist", "/advisor", "/settings", "/onboarding"];
+  const protectedRoutes = [
+    "/watchlist",
+    "/advisor",
+    "/settings",
+    "/onboarding",
+    "/valuation",
+    "/learn",
+  ];
   const authRoutes = ["/login", "/signup"];
 
   const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));

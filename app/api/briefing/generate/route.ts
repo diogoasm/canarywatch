@@ -30,6 +30,10 @@ For each stock:
 
 Be direct and specific. Use real numbers. Never be vague. Max 2-3 sentences per section but make every sentence count.
 
+Be extremely concise. Every bullet point maximum 1-2 sentences. No repetition across sections.
+If a point was made in Canary Warnings, do not repeat it in Outlook.
+Total briefing should feel like a sharp, focused memo — not a report.
+
 Return your response as a valid JSON object only — no markdown, no explanation, just the raw JSON with these keys: canary_warnings, market_context, outlook, disclaimer`;
 
 // ─── Formatting helpers ────────────────────────────────────────────────────
@@ -424,7 +428,11 @@ export async function POST() {
     })
     .join("\n");
 
-  const userPrompt = `Analyse this portfolio and give me a detailed briefing using all the data provided:
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  const userPrompt = `Today's date is ${todayStr}. All earnings dates and days-remaining figures below were fetched fresh today — treat them as current and calculate any date references relative to today.
+
+Analyse this portfolio and give me a detailed briefing using all the data provided:
 
 ${stockLines}
 

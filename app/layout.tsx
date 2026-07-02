@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, DM_Sans, DM_Mono } from "next/font/google";
+import PageTransition from "@/components/PageTransition";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -46,6 +47,7 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable} antialiased bg-background`}
       >
+        <PageTransition />
         {children}
       </body>
     </html>

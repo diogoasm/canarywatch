@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import CountUp from "@/components/CountUp";
 import type { Profile } from "@/types";
+import { daysUntil } from "@/lib/utils";
 
 // ─── Local types ───────────────────────────────────────────────────────────
 
@@ -76,6 +77,10 @@ function fmtDate(iso: string) {
 function creditsRemaining(profile: Profile): number | null {
   if (profile.plan === "premium") return null; // unlimited
   return Math.max(0, MONTHLY_LIMIT - profile.briefings_used);
+}
+
+function hoursSince(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
 
 // ─── Credit badge ──────────────────────────────────────────────────────────
@@ -305,7 +310,8 @@ function KeyDatesCard({ dates }: { dates: KeyDate[] }) {
       </h3>
       <div className="flex flex-col gap-4">
         {dates.map((d) => {
-          const days = d.days_until;
+          // Always recalculate from today — stored days_until goes stale
+          const days = d.earnings_date ? daysUntil(d.earnings_date) : null;
           const confirmed = d.confirmed !== false; // treat undefined as confirmed (legacy)
           const isUrgent = confirmed && days !== null && days <= 7;
           const isWatch = confirmed && days !== null && days > 7 && days <= 21;
@@ -345,7 +351,9 @@ function KeyDatesCard({ dates }: { dates: KeyDate[] }) {
                     {fmtEarningsDate(d.earnings_date)}
                     {days !== null && (
                       <span className="ml-1 font-medium">
-                        ({days} day{days === 1 ? "" : "s"} away)
+                        {days < 0
+                          ? "(date has passed — regenerate for updated dates)"
+                          : `(${days} day${days === 1 ? "" : "s"} away)`}
                       </span>
                     )}
                     {!confirmed && (
@@ -502,12 +510,22 @@ function BriefingDisplay({
 }) {
   const c = briefing.content;
 
+  const ageHours = hoursSince(briefing.generated_at);
+  const isStale = ageHours >= 24;
+  const ageDays = Math.floor(ageHours / 24);
+  const ageHoursRounded = Math.max(1, Math.floor(ageHours));
+
   return (
     <div className="flex flex-col gap-5">
       {/* Timestamp + regenerate */}
       <div className="flex items-center justify-between gap-4">
-        <p className="font-body text-xs text-text-secondary">
-          Generated {fmtDate(briefing.generated_at)}
+        <p
+          className="font-body text-xs text-text-secondary"
+          title={fmtDate(briefing.generated_at)}
+        >
+          {isStale
+            ? `Generated ${fmtDate(briefing.generated_at)}`
+            : `Generated ${ageHoursRounded} hour${ageHoursRounded === 1 ? "" : "s"} ago`}
         </p>
         {canRegenerate && (
           <button
@@ -518,6 +536,32 @@ function BriefingDisplay({
           </button>
         )}
       </div>
+
+      {/* Staleness warning */}
+      {isStale && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-canary/15 border border-canary/50 rounded-lg px-4 py-3">
+          <p className="font-body text-sm text-text-primary flex-1 leading-relaxed">
+            <span aria-hidden="true">⚠</span> This briefing is {ageDays} day
+            {ageDays === 1 ? "" : "s"} old. Stock prices and key dates may have
+            changed. Regenerate for current data.
+          </p>
+          {canRegenerate ? (
+            <button
+              onClick={onRegenerate}
+              className="shrink-0 bg-canary text-[#1A1A1A] font-body text-xs font-bold px-4 py-2 rounded-lg hover:bg-canary-dark transition-colors"
+            >
+              Regenerate Now
+            </button>
+          ) : (
+            <a
+              href="/pricing"
+              className="shrink-0 bg-canary text-[#1A1A1A] font-body text-xs font-bold px-4 py-2 rounded-lg hover:bg-canary-dark transition-colors text-center"
+            >
+              Upgrade to Premium to regenerate
+            </a>
+          )}
+        </div>
+      )}
 
       <RevealCard index={0}>
         <SnapshotCard snapshot={c.portfolio_snapshot} />
