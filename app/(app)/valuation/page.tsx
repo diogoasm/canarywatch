@@ -11,15 +11,23 @@ interface FcfQuarter {
   free_cash_flow: number;
 }
 
+interface DcfResult {
+  applicable: boolean;
+  intrinsic_value: number | null;
+  fmp_estimate: number | null;
+  growth_rate: number | null;
+  annual_fcf: number | null;
+  shares_outstanding: number | null;
+}
+
 interface ValuationData {
   ticker: string;
   current_price: number | null;
-  dcf_value: number | null;
+  dcf: DcfResult;
   fcf_quarters: FcfQuarter[];
   pays_dividend: boolean;
   annual_dividend: number | null;
   dividend_growth_rate: number | null;
-  dividend_yield: number | null;
   has_data: boolean;
 }
 
@@ -221,32 +229,68 @@ function FcfChart({ quarters }: { quarters: FcfQuarter[] }) {
 // ─── DCF card ──────────────────────────────────────────────────────────────
 
 function DcfSection({ data }: { data: ValuationData }) {
+  const dcf = data.dcf;
+
+  if (!dcf.applicable || dcf.intrinsic_value === null) {
+    return (
+      <div className="card p-6 bg-background/60">
+        <h3 className="font-display text-base font-bold text-text-secondary mb-2">
+          DCF Not Applicable
+        </h3>
+        <p className="font-body text-sm text-text-secondary leading-relaxed">
+          {data.ticker} does not have positive free cash flow history required
+          for a meaningful DCF calculation. This is common for early-stage or
+          unprofitable companies.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <CollapsibleCard
       title="Discounted Cash Flow (DCF)"
       tooltip="DCF calculates what a company's future cash flows are worth in today's money. It's the most widely used valuation method by professional investors."
     >
-      {data.dcf_value !== null && data.current_price !== null ? (
-        <div className="mb-6">
+      <div className="mb-4">
+        {data.current_price !== null && (
           <ValueRow
             label="Current Market Price"
             value={fmtMoney(data.current_price)}
           />
-          <ValueRow
-            label="DCF Intrinsic Value"
-            value={fmtMoney(data.dcf_value)}
-            tooltip="This is what the model estimates the stock is worth based on projected future cash flows discounted back to today. This is a model output, not a fact — it depends heavily on growth assumptions which may not reflect reality."
-          />
+        )}
+        <ValueRow
+          label="DCF Intrinsic Value"
+          value={fmtMoney(dcf.intrinsic_value)}
+          tooltip="This is what the model estimates the stock is worth based on projected future cash flows discounted back to today. This is a model output, not a fact — it depends heavily on growth assumptions which may not reflect reality."
+        />
+        {data.current_price !== null && (
           <PremiumDiscountRow
             price={data.current_price}
-            intrinsic={data.dcf_value}
+            intrinsic={dcf.intrinsic_value}
           />
-        </div>
-      ) : (
-        <p className="font-body text-sm text-text-secondary mb-6">
-          No DCF model available for {data.ticker}.
-        </p>
-      )}
+        )}
+      </div>
+
+      <p className="font-body text-xs text-text-secondary leading-relaxed mb-6">
+        {dcf.fmp_estimate !== null && (
+          <>
+            Our calculation:{" "}
+            <span className="font-mono text-text-primary">
+              {fmtMoney(dcf.intrinsic_value)}
+            </span>{" "}
+            | FMP estimate:{" "}
+            <span className="font-mono text-text-primary">
+              {fmtMoney(dcf.fmp_estimate)}
+            </span>
+            <br />
+          </>
+        )}
+        Assumptions:{" "}
+        {dcf.growth_rate !== null
+          ? `${(dcf.growth_rate * 100).toFixed(1)}% annual FCF growth`
+          : "conservative FCF growth"}
+        , 10% discount rate, 2.5% terminal growth over 5 years.
+      </p>
 
       {data.fcf_quarters.length > 0 && (
         <div className="mb-5">

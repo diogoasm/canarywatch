@@ -1,14 +1,35 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import type { User } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 import { CanaryLogoIcon } from "./CanaryIcon";
 
 export default function Navbar() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   useEffect(() => {
-    console.log("navbar is interactive");
+    const supabase = createClient();
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthChecked(true);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const initial = user?.email?.charAt(0).toUpperCase() ?? "?";
 
   return (
     <nav className="sticky top-0 z-50 bg-background border-b border-border">
@@ -49,17 +70,41 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Right CTAs */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="font-body text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
-            >
-              Login
-            </Link>
-            <Link href="/signup">
-              <button className="btn-primary text-sm">Get Started</button>
-            </Link>
+          {/* Right CTAs — hidden until auth state is known to avoid a flash */}
+          <div
+            className={`flex items-center gap-3 transition-opacity duration-150 ${
+              authChecked ? "opacity-100" : "opacity-0"
+            }`}
+          >
+            {user ? (
+              <>
+                <Link href="/watchlist">
+                  <button className="btn-primary text-sm">
+                    My Portfolio →
+                  </button>
+                </Link>
+                <Link
+                  href="/settings"
+                  className="w-9 h-9 rounded-full bg-canary text-[#1A1A1A] font-body text-sm font-bold flex items-center justify-center hover:bg-canary-dark transition-colors"
+                  title={user.email ?? "Settings"}
+                  aria-label="Account settings"
+                >
+                  {initial}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="font-body text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
+                >
+                  Login
+                </Link>
+                <Link href="/signup">
+                  <button className="btn-primary text-sm">Get Started</button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
