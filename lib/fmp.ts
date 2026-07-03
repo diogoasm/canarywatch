@@ -1,4 +1,9 @@
+// Legacy base — these endpoints return HTTP 403 for newer free API keys.
+// Earnings calendar and analyst estimates have no free-tier /stable
+// equivalent (402 Payment Required), so those calls fail gracefully to null.
 const BASE_URL = "https://financialmodelingprep.com/api/v3";
+// Stable base — works on current free keys (ratings, price targets).
+const STABLE_URL = "https://financialmodelingprep.com/stable";
 const apiKey = () => process.env.FMP_API_KEY ?? "";
 
 // ─── FMP response shapes ───────────────────────────────────────────────────
@@ -25,14 +30,14 @@ interface FmpAnalystEstimate {
   estimatedEpsLow: number;
 }
 
-interface FmpAnalystRecommendation {
-  date: string;
+interface FmpGradesConsensus {
   symbol: string;
-  analystRatingsStrongBuy: number;
-  analystRatingsBuy: number;
-  analystRatingsHold: number;
-  analystRatingsSell: number;
-  analystRatingsStrongSell: number;
+  strongBuy: number;
+  buy: number;
+  hold: number;
+  sell: number;
+  strongSell: number;
+  consensus?: string;
 }
 
 interface FmpPriceTarget {
@@ -76,12 +81,12 @@ export interface PriceTargetData {
 
 // ─── Internal helpers ──────────────────────────────────────────────────────
 
-function deriveConsensus(r: FmpAnalystRecommendation): string {
-  const sb = r.analystRatingsStrongBuy ?? 0;
-  const b = r.analystRatingsBuy ?? 0;
-  const h = r.analystRatingsHold ?? 0;
-  const s = r.analystRatingsSell ?? 0;
-  const ss = r.analystRatingsStrongSell ?? 0;
+function deriveConsensus(r: FmpGradesConsensus): string {
+  const sb = r.strongBuy ?? 0;
+  const b = r.buy ?? 0;
+  const h = r.hold ?? 0;
+  const s = r.sell ?? 0;
+  const ss = r.strongSell ?? 0;
   const total = sb + b + h + s + ss;
   if (total === 0) return "N/A";
   const bullRatio = (sb + b) / total;
@@ -191,13 +196,15 @@ export async function getAnalystRating(ticker: string): Promise<AnalystRatingDat
     if (!key) return { consensus: null };
 
     const res = await fetch(
-      `${BASE_URL}/analyst-stock-recommendations/${ticker}?apikey=${key}`,
+      `${STABLE_URL}/grades-consensus?symbol=${ticker}&apikey=${key}`,
       { next: { revalidate: 86400 } }
     );
     const data: unknown = await res.json();
     if (!Array.isArray(data) || data.length === 0) return { consensus: null };
 
-    return { consensus: deriveConsensus((data as FmpAnalystRecommendation[])[0]) };
+    const grades = (data as FmpGradesConsensus[])[0];
+    // FMP provides a ready-made consensus string; derive our own if absent
+    return { consensus: grades.consensus ?? deriveConsensus(grades) };
   } catch {
     return { consensus: null };
   }
@@ -209,7 +216,7 @@ export async function getPriceTarget(ticker: string): Promise<PriceTargetData> {
     if (!key) return { target_consensus: null, target_high: null, target_low: null };
 
     const res = await fetch(
-      `${BASE_URL}/price-target-consensus/${ticker}?apikey=${key}`,
+      `${STABLE_URL}/price-target-consensus?symbol=${ticker}&apikey=${key}`,
       { next: { revalidate: 86400 } }
     );
     const data: unknown = await res.json();

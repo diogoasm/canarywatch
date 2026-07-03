@@ -18,6 +18,21 @@ interface QuoteData {
   error?: string;
 }
 
+interface NewsArticle {
+  ticker: string;
+  headline: string;
+  summary: string;
+  url: string;
+  datetime: number; // unix seconds
+  source: string;
+}
+
+type NewsState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "loaded"; articles: NewsArticle[] };
+
 // ─── Canary flag logic ─────────────────────────────────────────────────────
 
 function resolveCanaryStatus(
@@ -433,6 +448,77 @@ function WatchlistRow({
   );
 }
 
+// ─── News section ──────────────────────────────────────────────────────────
+
+function formatNewsDate(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function NewsCard({ article }: { article: NewsArticle }) {
+  return (
+    <a
+      href={article.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="card card-hover p-4 flex flex-col gap-2.5 no-underline"
+    >
+      <span className="self-start font-mono text-[11px] font-medium bg-canary text-[#1A1A1A] px-2 py-0.5 rounded">
+        {article.ticker}
+      </span>
+      <p className="font-body text-sm font-medium text-text-primary leading-snug line-clamp-2">
+        {article.headline}
+      </p>
+      <p className="font-mono text-[11px] text-text-secondary">
+        {article.source} · {formatNewsDate(article.datetime)}
+      </p>
+    </a>
+  );
+}
+
+function NewsSkeletonCard() {
+  return (
+    <div className="card p-4 animate-pulse">
+      <div className="h-4 bg-border rounded w-12 mb-3" />
+      <div className="h-3.5 bg-border rounded w-full mb-1.5" />
+      <div className="h-3.5 bg-border rounded w-3/4 mb-3" />
+      <div className="h-3 bg-border rounded w-32" />
+    </div>
+  );
+}
+
+function NewsSection({ news }: { news: NewsState }) {
+  if (news.status === "idle" || news.status === "error") return null;
+
+  return (
+    <div className="mt-10">
+      <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-4">
+        Latest News
+      </p>
+      {news.status === "loading" ? (
+        <div className="grid md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <NewsSkeletonCard key={i} />
+          ))}
+        </div>
+      ) : news.articles.length === 0 ? (
+        <p className="font-body text-sm text-text-secondary">
+          No recent news for your holdings.
+        </p>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-4">
+          {news.articles.map((article) => (
+            <NewsCard key={`${article.ticker}-${article.url}`} article={article} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Column header row ─────────────────────────────────────────────────────
 
 function ColumnHeaders() {
@@ -470,6 +556,33 @@ export default function WatchlistPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [selectedStock, setSelectedStock] = useState<StockSearchResult | null>(null);
   const [listError, setListError] = useState<string | null>(null);
+  const [news, setNews] = useState<NewsState>({ status: "idle" });
+
+  // Fires after the watchlist itself has loaded — news never blocks the page,
+  // and a failed fetch simply hides the section.
+  const fetchNews = useCallback(async (tickers: string[]) => {
+    if (tickers.length === 0) {
+      setNews({ status: "idle" });
+      return;
+    }
+    setNews({ status: "loading" });
+    try {
+      const res = await fetch(
+        `/api/stock/news?tickers=${encodeURIComponent(tickers.join(","))}`
+      );
+      if (!res.ok) {
+        setNews({ status: "error" });
+        return;
+      }
+      const json = await res.json();
+      setNews({
+        status: "loaded",
+        articles: Array.isArray(json.articles) ? json.articles : [],
+      });
+    } catch {
+      setNews({ status: "error" });
+    }
+  }, []);
 
   // Fetch watchlist from Supabase
   const fetchWatchlist = useCallback(async () => {
@@ -500,6 +613,9 @@ export default function WatchlistPage() {
     setItems(loaded);
     setLoadingList(false);
 
+    // Kick off the news fetch without blocking quote loading
+    fetchNews(loaded.map((i) => i.ticker));
+
     // Mark all as loading quotes, then fetch
     if (loaded.length > 0) {
       const loadingMap: Record<string, "loading"> = {};
@@ -525,7 +641,7 @@ export default function WatchlistPage() {
       fetched.forEach(({ ticker, data }) => (quoteMap[ticker] = data));
       setQuotes(quoteMap);
     }
-  }, []);
+  }, [fetchNews]);
 
   useEffect(() => {
     fetchWatchlist();
@@ -673,6 +789,9 @@ export default function WatchlistPage() {
           </>
         )}
       </div>
+
+      {/* ── Latest news ── */}
+      {items.length > 0 && <NewsSection news={news} />}
     </div>
   );
 }

@@ -40,76 +40,137 @@ function FlyingCanaryOverlay({ onDone }: { onDone: () => void }) {
 }
 
 // ─── Hero mock watchlist ───────────────────────────────────────────────────
+// Live prices from /api/stock/quote (public, Finnhub-backed). Falls back to
+// static placeholder prices if the fetch fails.
+
+const MOCK_STOCKS = [
+  {
+    ticker: "SPY",
+    name: "S&P 500 ETF",
+    fallbackPrice: "594.20",
+    fallbackChange: 0.42,
+    status: "green" as const,
+  },
+  {
+    ticker: "GLD",
+    name: "Gold ETF",
+    fallbackPrice: "248.10",
+    fallbackChange: 0.18,
+    status: "grey" as const,
+  },
+  {
+    ticker: "NVDA",
+    name: "Nvidia Corp",
+    fallbackPrice: "878.35",
+    fallbackChange: 2.41,
+    status: "yellow" as const,
+  },
+];
+
+interface MockQuote {
+  price: string;
+  change: number;
+}
 
 function MockWatchlist() {
-  const stocks = [
-    {
-      ticker: "NVDA",
-      name: "Nvidia Corp",
-      price: "878.35",
-      change: "+2.41%",
-      positive: true,
-      status: "green" as const,
-    },
-    {
-      ticker: "ONDS",
-      name: "Ondas Holdings",
-      price: "1.24",
-      change: "-0.80%",
-      positive: false,
-      status: "red" as const,
-    },
-    {
-      ticker: "TSLA",
-      name: "Tesla Inc",
-      price: "178.08",
-      change: "-1.23%",
-      positive: false,
-      status: "yellow" as const,
-    },
-  ];
+  // undefined = still loading, null = fetch failed (use fallback)
+  const [quotes, setQuotes] = useState<
+    Record<string, MockQuote | null | undefined>
+  >({});
+
+  useEffect(() => {
+    let cancelled = false;
+    MOCK_STOCKS.forEach(async (stock) => {
+      try {
+        const res = await fetch(`/api/stock/quote?ticker=${stock.ticker}`);
+        const data = await res.json();
+        if (cancelled) return;
+        const ok = res.ok && typeof data.price === "number";
+        setQuotes((prev) => ({
+          ...prev,
+          [stock.ticker]: ok
+            ? {
+                price: data.price.toFixed(2),
+                change:
+                  typeof data.change_percent === "number"
+                    ? data.change_percent
+                    : 0,
+              }
+            : null,
+        }));
+      } catch {
+        if (!cancelled) {
+          setQuotes((prev) => ({ ...prev, [stock.ticker]: null }));
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
-    <div className="card w-full max-w-md mx-auto overflow-hidden">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <span className="font-body text-sm font-semibold text-text-primary">
+    <div className="card w-full max-w-xs mx-auto overflow-hidden">
+      <div className="px-3.5 py-2.5 border-b border-border flex items-center justify-between">
+        <span className="font-playfair text-sm font-semibold text-text-primary">
           My Watchlist
         </span>
-        <span className="font-body text-xs text-text-secondary">
+        <span className="font-body text-[11px] text-text-secondary">
           3 stocks
         </span>
       </div>
       <div className="divide-y divide-border">
-        {stocks.map((stock) => (
-          <div
-            key={stock.ticker}
-            className="px-4 py-3 flex items-center justify-between"
-          >
-            <div className="flex items-center gap-3">
-              <CanaryIcon status={stock.status} size={18} />
-              <div>
-                <p className="font-body text-sm font-semibold text-text-primary">
-                  {stock.ticker}
-                </p>
-                <p className="font-body text-xs text-text-secondary">
-                  {stock.name}
-                </p>
+        {MOCK_STOCKS.map((stock) => {
+          const quote = quotes[stock.ticker];
+          const loading = quote === undefined;
+          const price = quote?.price ?? stock.fallbackPrice;
+          const change = quote?.change ?? stock.fallbackChange;
+          const positive = change >= 0;
+          return (
+            <div
+              key={stock.ticker}
+              className="px-3.5 py-2.5 flex items-center justify-between"
+            >
+              <div className="flex items-center gap-2.5">
+                <CanaryIcon status={stock.status} size={15} />
+                <div>
+                  <p className="font-body text-xs font-semibold text-text-primary">
+                    {stock.ticker}
+                  </p>
+                  <p className="font-body text-[11px] text-text-secondary">
+                    {stock.name}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                {loading ? (
+                  <>
+                    <p className="font-mono text-xs text-text-secondary/50">
+                      ···
+                    </p>
+                    <p className="font-mono text-[11px] text-text-secondary/50">
+                      ···
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-mono text-xs font-medium text-text-primary">
+                      ${price}
+                    </p>
+                    <p
+                      className={`font-mono text-[11px] font-medium ${
+                        positive ? "text-positive" : "text-urgent"
+                      }`}
+                    >
+                      {positive ? "+" : ""}
+                      {change.toFixed(2)}%
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-            <div className="text-right">
-              <p className="font-mono text-sm font-medium text-text-primary">
-                ${stock.price}
-              </p>
-              <p
-                className={`font-mono text-xs font-medium ${
-                  stock.positive ? "text-positive" : "text-urgent"
-                }`}
-              >
-                {stock.change}
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -199,7 +260,10 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Link href="/signup" className="btn-primary text-sm px-6 py-2.5">
+              <Link
+                href="/signup"
+                className="btn-primary font-playfair text-sm px-6 py-2.5"
+              >
                 Get Started Free
               </Link>
               <button
@@ -209,7 +273,7 @@ export default function LandingPage() {
                     .getElementById("features")
                     ?.scrollIntoView({ behavior: "smooth" })
                 }
-                className="btn-outline text-sm px-6 py-2.5"
+                className="btn-outline font-playfair text-sm px-6 py-2.5"
               >
                 See how it works
               </button>
@@ -239,22 +303,22 @@ export default function LandingPage() {
 
           {/* Mock UI */}
           <div className="lg:flex lg:justify-end">
-            <div className="w-full max-w-sm mx-auto lg:mx-0">
+            <div className="w-full max-w-xs mx-auto lg:mx-0">
               <MockWatchlist />
               {/* Briefing preview card */}
-              <div className="card mt-4 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#FFF8E1] flex items-center justify-center shrink-0">
-                    <CanaryLogoIcon size={18} />
+              <div className="card mt-3 p-3.5">
+                <div className="flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-full bg-[#FFF8E1] flex items-center justify-center shrink-0">
+                    <CanaryLogoIcon size={15} />
                   </div>
                   <div>
-                    <p className="font-body text-xs font-semibold text-text-primary mb-1">
+                    <p className="font-playfair text-xs font-semibold text-text-primary mb-1">
                       Canary Briefing
                     </p>
-                    <p className="font-body text-xs text-text-secondary leading-relaxed">
-                      <span className="text-urgent font-medium">ONDS</span>{" "}
-                      earnings in 6 days. Last quarter missed EPS by $0.33.
-                      Decide your strategy before May 12.
+                    <p className="font-body text-[11px] text-text-secondary leading-relaxed">
+                      <span className="text-canary-dark font-medium">NVDA</span>{" "}
+                      earnings approaching — analyst consensus is Strong Buy
+                      with $1,200 avg target. Up 8.3% from your entry.
                     </p>
                   </div>
                 </div>

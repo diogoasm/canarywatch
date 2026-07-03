@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import UpgradeButton from "@/components/UpgradeButton";
 
 export const metadata: Metadata = {
   title: "Pricing — Canary",
@@ -116,12 +117,10 @@ export default function PricingPage() {
                 <CheckItem>Single-stock deep dive briefings</CheckItem>
                 <CheckItem>Priority data refresh</CheckItem>
               </ul>
-              <Link
-                href="/signup"
-                className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors"
-              >
-                Upgrade to Premium →
-              </Link>
+              <div className="flex flex-col items-start gap-3">
+                <UpgradeButton plan="monthly" />
+                <UpgradeButton plan="annual" variant="link" />
+              </div>
             </div>
           </div>
         </div>

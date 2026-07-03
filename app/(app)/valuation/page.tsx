@@ -18,6 +18,7 @@ interface DcfResult {
   growth_rate: number | null;
   annual_fcf: number | null;
   shares_outstanding: number | null;
+  note: string | null;
 }
 
 interface ValuationData {
@@ -29,6 +30,7 @@ interface ValuationData {
   annual_dividend: number | null;
   dividend_growth_rate: number | null;
   has_data: boolean;
+  unavailable_reason: string | null;
 }
 
 const REQUIRED_RETURN = 0.1; // r — standard market assumption
@@ -271,26 +273,32 @@ function DcfSection({ data }: { data: ValuationData }) {
         )}
       </div>
 
-      <p className="font-body text-xs text-text-secondary leading-relaxed mb-6">
-        {dcf.fmp_estimate !== null && (
-          <>
-            Our calculation:{" "}
-            <span className="font-mono text-text-primary">
-              {fmtMoney(dcf.intrinsic_value)}
-            </span>{" "}
-            | FMP estimate:{" "}
-            <span className="font-mono text-text-primary">
-              {fmtMoney(dcf.fmp_estimate)}
-            </span>
-            <br />
-          </>
-        )}
-        Assumptions:{" "}
-        {dcf.growth_rate !== null
-          ? `${(dcf.growth_rate * 100).toFixed(1)}% annual FCF growth`
-          : "conservative FCF growth"}
-        , 10% discount rate, 2.5% terminal growth over 5 years.
-      </p>
+      {dcf.note !== null ? (
+        <p className="font-body text-xs text-text-secondary leading-relaxed mb-6">
+          {dcf.note}
+        </p>
+      ) : (
+        <p className="font-body text-xs text-text-secondary leading-relaxed mb-6">
+          {dcf.fmp_estimate !== null && (
+            <>
+              Our calculation:{" "}
+              <span className="font-mono text-text-primary">
+                {fmtMoney(dcf.intrinsic_value)}
+              </span>{" "}
+              | FMP estimate:{" "}
+              <span className="font-mono text-text-primary">
+                {fmtMoney(dcf.fmp_estimate)}
+              </span>
+              <br />
+            </>
+          )}
+          Assumptions:{" "}
+          {dcf.growth_rate !== null
+            ? `${(dcf.growth_rate * 100).toFixed(1)}% annual FCF growth`
+            : "conservative FCF growth"}
+          , 10% discount rate, 2.5% terminal growth over 5 years.
+        </p>
+      )}
 
       {data.fcf_quarters.length > 0 && (
         <div className="mb-5">
@@ -498,9 +506,10 @@ export default function ValuationPage() {
         ) : (
           <div className="card p-6 bg-background/60">
             <p className="font-body text-sm text-text-secondary leading-relaxed">
-              Valuation data unavailable for {data.ticker}. This may be a very
-              small company, ETF, or foreign-listed stock with limited
-              coverage.
+              Data unavailable:{" "}
+              {data.unavailable_reason ??
+                "no valuation data returned for this ticker"}
+              .
             </p>
           </div>
         )

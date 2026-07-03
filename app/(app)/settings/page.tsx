@@ -96,6 +96,24 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Stripe portal state
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
+
+  // Post-checkout success banner (?upgraded=true), auto-dismissed after 5s.
+  // Read from window.location instead of useSearchParams to avoid needing
+  // a Suspense boundary at build time.
+  const [showUpgradedBanner, setShowUpgradedBanner] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") === "true") {
+      setShowUpgradedBanner(true);
+      const t = setTimeout(() => setShowUpgradedBanner(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   useEffect(() => {
     async function load() {
       const supabase = createClient();
@@ -133,6 +151,24 @@ export default function SettingsPage() {
     setSendingReset(false);
   }
 
+  async function handleManageSubscription() {
+    setOpeningPortal(true);
+    setPortalError(null);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.url) {
+        setPortalError(json.error ?? "Failed to open subscription portal.");
+        setOpeningPortal(false);
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setPortalError("Network error. Please try again.");
+      setOpeningPortal(false);
+    }
+  }
+
   async function handleDeleteAccount() {
     setDeleting(true);
     setDeleteError(null);
@@ -161,6 +197,14 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+      {showUpgradedBanner && (
+        <div className="bg-positive/10 border border-positive/30 rounded-lg px-4 py-3 mb-6">
+          <p className="font-body text-sm font-medium text-positive">
+            🎉 Welcome to Premium! Unlimited briefings are now active.
+          </p>
+        </div>
+      )}
+
       <h1 className="font-display text-3xl font-bold text-text-primary mb-8">
         Settings
       </h1>
@@ -236,9 +280,23 @@ export default function SettingsPage() {
             </div>
 
             {isPremium ? (
-              <p className="font-body text-sm text-positive font-medium">
-                Unlimited briefings
-              </p>
+              <>
+                <p className="font-body text-sm text-positive font-medium mb-5">
+                  Unlimited briefings
+                </p>
+                <button
+                  onClick={handleManageSubscription}
+                  disabled={openingPortal}
+                  className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60"
+                >
+                  {openingPortal ? "Opening portal…" : "Manage Subscription"}
+                </button>
+                {portalError && (
+                  <p className="font-body text-xs text-urgent mt-2">
+                    {portalError}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 <p className="font-body text-sm text-text-primary mb-2">

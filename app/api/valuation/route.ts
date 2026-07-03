@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-const FMP_BASE = "https://financialmodelingprep.com/api/v3";
+// FMP's legacy /api/v3 endpoints return HTTP 403 for newer free API keys —
+// all data now comes from the /stable API.
+const FMP_BASE = "https://financialmodelingprep.com/stable";
 
 // DCF assumptions — conservative, fixed
 const DISCOUNT_RATE = 0.1; // r
@@ -24,6 +26,7 @@ export interface DcfResult {
   growth_rate: number | null; // growth assumption used (fraction)
   annual_fcf: number | null; // annualised FCF the model starts from
   shares_outstanding: number | null;
+  note: string | null; // set when intrinsic value comes from FMP's model instead of ours
 }
 
 export interface ValuationData {
@@ -35,20 +38,47 @@ export interface ValuationData {
   annual_dividend: number | null; // trailing 12-month dividend per share (D0)
   dividend_growth_rate: number | null; // fraction, 3-year CAGR
   has_data: boolean;
+  unavailable_reason: string | null; // specific failure reason when has_data is false
 }
 
 // ─── FMP fetch helper ──────────────────────────────────────────────────────
 
+// Fetches an FMP endpoint with detailed logging. On failure returns
+// { error } describing what went wrong so the route can report a
+// specific "data unavailable" reason instead of a generic one.
+type FmpFailure = { error: string };
+
+function isFmpFailure(v: unknown): v is FmpFailure {
+  return (
+    typeof v === "object" &&
+    v !== null &&
+    !Array.isArray(v) &&
+    "error" in v &&
+    typeof (v as FmpFailure).error === "string"
+  );
+}
+
 async function fmpJson(path: string, key: string): Promise<unknown> {
+  const url = `${FMP_BASE}${path}${path.includes("?") ? "&" : "?"}apikey=${key}`;
+  const maskedUrl = url.replace(key, "****");
   try {
-    const res = await fetch(
-      `${FMP_BASE}${path}${path.includes("?") ? "&" : "?"}apikey=${key}`,
-      { next: { revalidate: 3600 } }
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    const bodyText = await res.text();
+    console.log(
+      `[valuation] GET ${maskedUrl} → HTTP ${res.status} | body: ${bodyText.slice(0, 200)}`
     );
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
+    if (!res.ok) {
+      return { error: `HTTP ${res.status} from ${path.split("?")[0]}` };
+    }
+    try {
+      return JSON.parse(bodyText);
+    } catch {
+      console.error(`[valuation] GET ${maskedUrl} → invalid JSON`);
+      return { error: `Invalid JSON from ${path.split("?")[0]}` };
+    }
+  } catch (err) {
+    console.error(`[valuation] GET ${maskedUrl} → network error:`, err);
+    return { error: `Network error calling ${path.split("?")[0]}` };
   }
 }
 
@@ -150,12 +180,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const [cashFlowRaw, incomeRaw, profileRaw, dividendRaw, quoteRaw] =
+  const [cashFlowRaw, incomeRaw, profileRaw, dividendRaw, fmpDcfRaw, quoteRaw] =
     await Promise.all([
-      fmpJson(`/cash-flow-statement/${ticker}?period=quarter&limit=4`, fmpKey),
-      fmpJson(`/income-statement/${ticker}?period=quarter&limit=4`, fmpKey),
-      fmpJson(`/profile/${ticker}`, fmpKey),
-      fmpJson(`/historical-price-full/stock_dividend/${ticker}`, fmpKey),
+      fmpJson(`/cash-flow-statement?symbol=${ticker}&period=quarter&limit=4`, fmpKey),
+      fmpJson(`/income-statement?symbol=${ticker}&period=quarter&limit=4`, fmpKey),
+      fmpJson(`/profile?symbol=${ticker}`, fmpKey),
+      fmpJson(`/dividends?symbol=${ticker}`, fmpKey),
+      fmpJson(`/discounted-cash-flow?symbol=${ticker}`, fmpKey),
       finnhubKey
         ? fetch(
             `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhubKey}`,
@@ -167,15 +198,27 @@ export async function GET(request: NextRequest) {
     ]);
 
   // ── Company profile (price fallback, shares fallback, FMP's own dcf) ─────
+  // FMP sometimes returns an array and sometimes a bare object — take [0]
+  // when it's an array, otherwise use the object directly.
 
-  const profile =
-    Array.isArray(profileRaw) && profileRaw.length > 0
-      ? (profileRaw[0] as {
-          price?: number;
-          mktCap?: number;
-          dcf?: number;
-        })
-      : null;
+  // stable API uses marketCap; older responses used mktCap — accept both
+  type FmpProfile = {
+    price?: number;
+    marketCap?: number;
+    mktCap?: number;
+    dcf?: number;
+  };
+  let profile: FmpProfile | null = null;
+  if (Array.isArray(profileRaw) && profileRaw.length > 0) {
+    profile = profileRaw[0] as FmpProfile;
+  } else if (
+    profileRaw !== null &&
+    typeof profileRaw === "object" &&
+    !Array.isArray(profileRaw) &&
+    !isFmpFailure(profileRaw)
+  ) {
+    profile = profileRaw as FmpProfile;
+  }
 
   // ── Live price (Finnhub, fall back to FMP profile) ───────────────────────
 
@@ -206,13 +249,14 @@ export async function GET(request: NextRequest) {
     const shs = latest.weightedAverageShsOutDil ?? latest.weightedAverageShsOut;
     if (typeof shs === "number" && shs > 0) sharesOutstanding = shs;
   }
+  const marketCap = profile?.marketCap ?? profile?.mktCap;
   if (
     sharesOutstanding === null &&
-    profile?.mktCap &&
+    marketCap &&
     currentPrice !== null &&
     currentPrice > 0
   ) {
-    sharesOutstanding = profile.mktCap / currentPrice;
+    sharesOutstanding = marketCap / currentPrice;
   }
 
   // ── DCF ──────────────────────────────────────────────────────────────────
@@ -222,27 +266,60 @@ export async function GET(request: NextRequest) {
     sharesOutstanding
   );
 
-  const fmpEstimate =
-    profile && typeof profile.dcf === "number" && profile.dcf > 0
-      ? profile.dcf
-      : null;
+  // FMP's own DCF estimate: dedicated /discounted-cash-flow endpoint on the
+  // stable API, with the old profile.dcf field as a fallback
+  let fmpEstimate: number | null = null;
+  if (Array.isArray(fmpDcfRaw) && fmpDcfRaw.length > 0) {
+    const entry = fmpDcfRaw[0] as { dcf?: number };
+    if (typeof entry.dcf === "number" && entry.dcf > 0) {
+      fmpEstimate = entry.dcf;
+    }
+  }
+  if (
+    fmpEstimate === null &&
+    profile &&
+    typeof profile.dcf === "number" &&
+    profile.dcf > 0
+  ) {
+    fmpEstimate = profile.dcf;
+  }
+
+  // Fall back to FMP's own DCF model when we can't calculate independently
+  let intrinsicValue = intrinsic;
+  let dcfNote: string | null = null;
+  if (intrinsicValue === null && fmpEstimate !== null) {
+    console.log(
+      `[valuation] ${ticker}: no usable FCF history (${fcfQuarters.length} quarters) — falling back to FMP profile.dcf = ${fmpEstimate}`
+    );
+    intrinsicValue = fmpEstimate;
+    dcfNote =
+      "Intrinsic value from FMP model — insufficient cash flow history for independent calculation";
+  }
 
   const dcf: DcfResult = {
-    applicable: intrinsic !== null,
-    intrinsic_value: intrinsic,
+    applicable: intrinsicValue !== null,
+    intrinsic_value: intrinsicValue,
     fmp_estimate: fmpEstimate,
-    growth_rate: growthRate,
+    growth_rate: dcfNote === null ? growthRate : null,
     annual_fcf: annualFcf,
     shares_outstanding: sharesOutstanding,
+    note: dcfNote,
   };
 
   // ── Dividends (free tier historical endpoint) ────────────────────────────
 
-  const dividendHistory: DividendEntry[] = Array.isArray(
-    (dividendRaw as { historical?: DividendEntry[] } | null)?.historical
-  )
-    ? (dividendRaw as { historical: DividendEntry[] }).historical
-    : [];
+  // stable /dividends returns a flat array; the legacy endpoint wrapped it
+  // in { historical: [...] } — accept both shapes
+  let dividendHistory: DividendEntry[] = [];
+  if (Array.isArray(dividendRaw)) {
+    dividendHistory = dividendRaw as DividendEntry[];
+  } else if (
+    Array.isArray(
+      (dividendRaw as { historical?: DividendEntry[] } | null)?.historical
+    )
+  ) {
+    dividendHistory = (dividendRaw as { historical: DividendEntry[] }).historical;
+  }
 
   const now = new Date();
   const yearAgo = new Date(now);
@@ -273,6 +350,40 @@ export async function GET(request: NextRequest) {
   // a live price alone doesn't make the valuation tools meaningful
   const hasData = dcf.applicable || fcfQuarters.length > 0 || paysDividend;
 
+  let unavailableReason: string | null = null;
+  if (!hasData) {
+    const reasons: string[] = [];
+
+    if (isFmpFailure(cashFlowRaw)) {
+      reasons.push(`cash flow: ${cashFlowRaw.error}`);
+    } else if (!Array.isArray(cashFlowRaw)) {
+      reasons.push("cash flow: unexpected response shape (not an array)");
+    } else if (cashFlowRaw.length === 0) {
+      reasons.push("cash flow: FMP returned an empty array");
+    } else {
+      reasons.push("cash flow: no quarters contained a freeCashFlow value");
+    }
+
+    if (isFmpFailure(profileRaw)) {
+      reasons.push(`profile: ${profileRaw.error}`);
+    } else if (profile === null) {
+      reasons.push("profile: empty or unexpected response");
+    } else if (fmpEstimate === null) {
+      reasons.push("dcf: no FMP dcf estimate available");
+    }
+
+    if (isFmpFailure(dividendRaw)) {
+      reasons.push(`dividends: ${dividendRaw.error}`);
+    } else if (!paysDividend) {
+      reasons.push("dividends: none paid in the last 12 months");
+    }
+
+    unavailableReason = reasons.join("; ");
+    console.log(
+      `[valuation] ${ticker}: "data unavailable" triggered — dcf.applicable=${dcf.applicable}, fcfQuarters=${fcfQuarters.length}, paysDividend=${paysDividend}. Reasons: ${unavailableReason}`
+    );
+  }
+
   const payload: ValuationData = {
     ticker,
     current_price: currentPrice,
@@ -282,6 +393,7 @@ export async function GET(request: NextRequest) {
     annual_dividend: paysDividend ? annualDividend : null,
     dividend_growth_rate: dividendGrowthRate,
     has_data: hasData,
+    unavailable_reason: unavailableReason,
   };
 
   return NextResponse.json(payload);

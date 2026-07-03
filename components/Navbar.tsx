@@ -63,6 +63,12 @@ export default function Navbar() {
               Features
             </Link>
             <Link
+              href="/how-it-works"
+              className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
+            >
+              How it works
+            </Link>
+            <Link
               href="/pricing"
               className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
             >
@@ -79,7 +85,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link href="/watchlist">
-                  <button className="btn-primary text-sm">
+                  <button className="btn-primary font-playfair text-xs px-3 py-1.5">
                     My Portfolio →
                   </button>
                 </Link>
