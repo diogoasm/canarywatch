@@ -27,7 +27,20 @@
       "Bash(git commit -m 'Landing page — fix redirects, remove pricing, head bob animation, navbar font, canary watermarks *)",
       "Bash(npm list *)",
       "Bash(git commit -m 'Fix button redirects, hero text size, canary animation *)",
-      "Bash(git commit -m 'Debug and fix button redirects *)"
+      "Bash(git commit -m 'Debug and fix button redirects *)",
+      "Bash(taskkill //F //IM node.exe //FI \"WINDOWTITLE ne Claude*\")",
+      "Bash(netstat -ano)",
+      "Bash(git -C /c/Users/Didi/canarywatch status --short)",
+      "Bash(taskkill //F //PID 31904)",
+      "Bash(git commit -m 'Big build — valuation tools, learn page, pricing page, settings, AI advisor fixes, page transitions *)",
+      "Bash(git commit -m 'Fix valuation DCF calculation, navbar auth state, user button *)",
+      "PowerShell(if \\(Test-Path .env.local\\) { Get-Content .env.local | ForEach-Object { \\($_ -split '='\\)[0] } })",
+      "PowerShell(npx tsc --noEmit)",
+      "PowerShell(npm run *)",
+      "PowerShell($key = \\(\\(Get-Content .env.local | Where-Object { $_ -match '^FMP_API_KEY=' }\\) -replace '^FMP_API_KEY=',''\\).Trim\\(\\); $cf = Invoke-RestMethod \"https://financialmodelingprep.com/stable/cash-flow-statement?symbol=AAPL&period=quarter&limit=1&apikey=$key\"; Write-Output \\(\"CF fields: \" + \\(\\($cf[0].PSObject.Properties.Name | Where-Object { $_ -match 'free|Cash' }\\) -join ', '\\)\\); $p = Invoke-RestMethod \"https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=$key\"; Write-Output \\(\"Profile fields: \" + \\(\\($p[0].PSObject.Properties.Name | Where-Object { $_ -match 'dcf|arket|price' }\\) -join ', '\\)\\); $inc = Invoke-RestMethod \"https://financialmodelingprep.com/stable/income-statement?symbol=AAPL&period=quarter&limit=1&apikey=$key\"; Write-Output \\(\"Income fields: \" + \\(\\($inc[0].PSObject.Properties.Name | Where-Object { $_ -match 'eighted|hares' }\\) -join ', '\\)\\))",
+      "PowerShell($key = \\(\\(Get-Content .env.local | Where-Object { $_ -match '^FMP_API_KEY=' }\\) -replace '^FMP_API_KEY=',''\\).Trim\\(\\); try { $d = Invoke-WebRequest -Uri \"https://financialmodelingprep.com/stable/discounted-cash-flow?symbol=AAPL&apikey=$key\" -UseBasicParsing -TimeoutSec 20; Write-Output \"HTTP $\\($d.StatusCode\\)\"; Write-Output $d.Content.Substring\\(0,[Math]::Min\\(250,$d.Content.Length\\)\\) } catch { Write-Output \"HTTP $\\($_.Exception.Response.StatusCode.value__\\)\" })",
+      "PowerShell(git add *)",
+      "PowerShell(git *)"
     ]
   }
 }

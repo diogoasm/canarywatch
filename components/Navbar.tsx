@@ -102,12 +102,14 @@ export default function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="font-body text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
+                  className="font-playfair text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
                 >
                   Login
                 </Link>
                 <Link href="/signup">
-                  <button className="btn-primary text-sm">Get Started</button>
+                  <button className="btn-primary font-playfair text-sm px-3 py-1.5">
+                    Get Started
+                  </button>
                 </Link>
               </>
             )}

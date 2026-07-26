@@ -266,17 +266,12 @@ export default function LandingPage() {
               >
                 Get Started Free
               </Link>
-              <button
-                type="button"
-                onClick={() =>
-                  document
-                    .getElementById("features")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
+              <Link
+                href="/how-it-works"
                 className="btn-outline font-playfair text-sm px-6 py-2.5"
               >
                 See how it works
-              </button>
+              </Link>
             </div>
 
             <div className="flex items-center gap-6 pt-2">
@@ -316,9 +311,13 @@ export default function LandingPage() {
                       Canary Briefing
                     </p>
                     <p className="font-body text-[11px] text-text-secondary leading-relaxed">
+                      e.g.{" "}
                       <span className="text-canary-dark font-medium">NVDA</span>{" "}
-                      earnings approaching — analyst consensus is Strong Buy
-                      with $1,200 avg target. Up 8.3% from your entry.
+                      earnings in 12 days — analyst consensus is Strong Buy.
+                      Consider your strategy before the print.
+                    </p>
+                    <p className="font-body text-[10px] italic text-text-secondary/60 mt-1.5">
+                      Example briefing
                     </p>
                   </div>
                 </div>
@@ -451,13 +450,13 @@ export default function LandingPage() {
             <div className="flex items-center gap-6">
               <Link
                 href="/privacy"
-                className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
+                className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 Privacy
               </Link>
               <Link
                 href="/terms"
-                className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
+                className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
               >
                 Terms
               </Link>

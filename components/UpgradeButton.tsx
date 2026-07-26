@@ -77,7 +77,7 @@ export default function UpgradeButton({
       <button
         onClick={handleUpgrade}
         disabled={loading}
-        className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="inline-block bg-canary text-[#1A1A1A] font-playfair text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Redirecting to checkout…" : "Upgrade to Premium →"}
       </button>

@@ -75,7 +75,7 @@ export default function PricingPage() {
             </ul>
             <Link
               href="/signup"
-              className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors"
+              className="inline-block bg-canary text-[#1A1A1A] font-playfair text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors"
             >
               Get started free →
             </Link>
