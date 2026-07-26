@@ -40,7 +40,9 @@
       "PowerShell($key = \\(\\(Get-Content .env.local | Where-Object { $_ -match '^FMP_API_KEY=' }\\) -replace '^FMP_API_KEY=',''\\).Trim\\(\\); $cf = Invoke-RestMethod \"https://financialmodelingprep.com/stable/cash-flow-statement?symbol=AAPL&period=quarter&limit=1&apikey=$key\"; Write-Output \\(\"CF fields: \" + \\(\\($cf[0].PSObject.Properties.Name | Where-Object { $_ -match 'free|Cash' }\\) -join ', '\\)\\); $p = Invoke-RestMethod \"https://financialmodelingprep.com/stable/profile?symbol=AAPL&apikey=$key\"; Write-Output \\(\"Profile fields: \" + \\(\\($p[0].PSObject.Properties.Name | Where-Object { $_ -match 'dcf|arket|price' }\\) -join ', '\\)\\); $inc = Invoke-RestMethod \"https://financialmodelingprep.com/stable/income-statement?symbol=AAPL&period=quarter&limit=1&apikey=$key\"; Write-Output \\(\"Income fields: \" + \\(\\($inc[0].PSObject.Properties.Name | Where-Object { $_ -match 'eighted|hares' }\\) -join ', '\\)\\))",
       "PowerShell($key = \\(\\(Get-Content .env.local | Where-Object { $_ -match '^FMP_API_KEY=' }\\) -replace '^FMP_API_KEY=',''\\).Trim\\(\\); try { $d = Invoke-WebRequest -Uri \"https://financialmodelingprep.com/stable/discounted-cash-flow?symbol=AAPL&apikey=$key\" -UseBasicParsing -TimeoutSec 20; Write-Output \"HTTP $\\($d.StatusCode\\)\"; Write-Output $d.Content.Substring\\(0,[Math]::Min\\(250,$d.Content.Length\\)\\) } catch { Write-Output \"HTTP $\\($_.Exception.Response.StatusCode.value__\\)\" })",
       "PowerShell(git add *)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "PowerShell(New-Item *)",
+      "PowerShell(npx next build 2>&1 | Select-Object -Last 40)"
     ]
   }
 }
