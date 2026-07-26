@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
+import FlyingCanaryIntro from "@/components/FlyingCanaryIntro";
 
 export const metadata: Metadata = {
   title: "How it works — Canary",
@@ -30,6 +31,10 @@ const STEPS = [
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-background">
+      {/* Flying canary intro — a fixed overlay above the page; the layout below
+          (navbar, hero, content) always renders normally and is unaffected. */}
+      <FlyingCanaryIntro />
+
       <Navbar />
 
       {/* ── Section 1: Hero ── */}

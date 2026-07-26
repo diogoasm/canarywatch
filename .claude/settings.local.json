@@ -42,7 +42,8 @@
       "PowerShell(git add *)",
       "PowerShell(git *)",
       "PowerShell(New-Item *)",
-      "PowerShell(npx next build 2>&1 | Select-Object -Last 40)"
+      "PowerShell(npx next build 2>&1 | Select-Object -Last 40)",
+      "PowerShell(npx next build 2>&1 | Select-Object -Last 35)"
     ]
   }
 }
