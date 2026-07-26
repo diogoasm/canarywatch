@@ -187,16 +187,18 @@ function FeatureCard({
   title: string;
   description: string;
 }) {
+  // Dark surface card — the `card` utility's white fill and warm-black shadow
+  // both disappear on #1A1A1A, so the hover cue is a border lift instead.
   return (
-    <div className="card card-hover p-6 flex flex-col gap-4">
+    <div className="bg-[#2A2A2A] rounded-card border border-[#3A3A3A] hover:border-[#4A4A4A] transition-colors duration-200 p-6 flex flex-col gap-4">
       <div className="w-10 h-10 flex items-center justify-center">
         {icon}
       </div>
       <div>
-        <h3 className="font-display text-lg font-semibold text-text-primary mb-2">
+        <h3 className="font-playfair text-lg font-semibold text-white mb-2">
           {title}
         </h3>
-        <p className="font-body text-sm text-text-secondary leading-relaxed">
+        <p className="font-body text-sm text-[#B0B0B0] leading-relaxed">
           {description}
         </p>
       </div>
@@ -333,9 +335,9 @@ export default function LandingPage() {
       {/* ── Features ─────────────────────────────────────────────────────── */}
       <section
         id="features"
-        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24"
+        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16"
       >
-        <div className="text-center mb-14">
+        <div className="text-center">
           <div>
             <div className="relative inline-block">
               <span
@@ -365,8 +367,19 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+      </section>
 
-        <div className="grid md:grid-cols-3 gap-6">
+      {/* ── Light → dark transition ── */}
+      {/* A gradient strip rather than a hard edge, so the switch into the
+          card section reads as a fade instead of a seam. */}
+      <div
+        aria-hidden
+        className="h-20 sm:h-28 bg-gradient-to-b from-background to-[#1A1A1A]"
+      />
+
+      {/* ── Feature cards (dark) ─────────────────────────────────────────── */}
+      <section className="bg-[#1A1A1A] pb-24 sm:pb-32">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-3 gap-6">
           <FeatureCard
             icon={
               <CanaryIcon status="red" size={32} />
@@ -433,6 +446,12 @@ export default function LandingPage() {
           />
         </div>
       </section>
+
+      {/* ── Dark → light transition ── */}
+      <div
+        aria-hidden
+        className="h-20 sm:h-28 bg-gradient-to-b from-[#1A1A1A] to-background"
+      />
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
       <footer className="border-t border-border">

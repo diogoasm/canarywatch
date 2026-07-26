@@ -9,9 +9,13 @@ import { createClient } from "@/lib/supabase/client";
 export default function UpgradeButton({
   plan,
   variant = "primary",
+  dark = false,
 }: {
   plan: "monthly" | "annual";
   variant?: "primary" | "link";
+  // Set on dark (#1A1A1A / #2A2A2A) sections — only affects the link variant,
+  // since the primary button's canary yellow already reads on both.
+  dark?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -59,7 +63,11 @@ export default function UpgradeButton({
         <button
           onClick={handleUpgrade}
           disabled={loading}
-          className="font-body text-sm text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors disabled:opacity-50"
+          className={`font-body text-sm underline underline-offset-2 transition-colors disabled:opacity-50 ${
+            dark
+              ? "text-[#B0B0B0] hover:text-canary"
+              : "text-text-secondary hover:text-text-primary"
+          }`}
         >
           {loading ? "Redirecting…" : "or upgrade annually — €79/year"}
         </button>
