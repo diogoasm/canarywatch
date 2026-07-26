@@ -175,12 +175,8 @@ function FeatureCard({
 
 // ─── Page ──────────────────────────────────────────────────────────────────
 
-export default function LandingPage() {
+export default function FeaturesPage() {
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    console.log("page is interactive");
-  }, []);
 
   return (
     <div className="min-h-screen bg-background">
