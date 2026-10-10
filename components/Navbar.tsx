@@ -10,7 +10,7 @@ import { CanaryLogoIcon } from "./CanaryIcon";
 // Single source of truth so the desktop bar and the mobile dropdown can't drift.
 const NAV_LINKS = [
   { href: "/features", label: "Features" },
-  { href: "/how-it-works", label: "How it works" },
+  { href: "/", label: "How it works" },
   { href: "/pricing", label: "Pricing" },
 ];
 

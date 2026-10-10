@@ -1,5 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
+import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
+
+// A paused or unreachable Supabase project can hang the auth call; give up
+// after this long and let the request through instead.
+const AUTH_TIMEOUT_MS = 3000;
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -28,9 +33,25 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session — required for Server Components to pick up updated tokens
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: User | null;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`Supabase auth timed out after ${AUTH_TIMEOUT_MS}ms`)),
+        AUTH_TIMEOUT_MS
+      );
+    });
+    const { data } = await Promise.race([supabase.auth.getUser(), timeout]);
+    user = data.user;
+  } catch (error) {
+    // Supabase is down or slow — let the request through. A logged-out user
+    // briefly seeing a protected page beats the request erroring.
+    console.error("[middleware] Supabase auth check failed:", error);
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const { pathname } = request.nextUrl;
 
@@ -62,8 +83,19 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+// Only run on routes that need auth. Public pages (/, /features, /pricing,
+// /privacy, /terms), API routes, sitemap/robots and static assets skip the
+// middleware entirely, so a Supabase outage can't take them down.
+// `:path*` matches the route itself as well as anything nested under it.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/watchlist/:path*",
+    "/advisor/:path*",
+    "/valuation/:path*",
+    "/learn/:path*",
+    "/settings/:path*",
+    "/onboarding/:path*",
+    "/login/:path*",
+    "/signup/:path*",
   ],
 };
