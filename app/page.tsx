@@ -7,7 +7,15 @@ import FlyingCanaryIntro from "@/components/FlyingCanaryIntro";
 export const metadata: Metadata = {
   title: "Canary — Know before it moves",
   description:
-    "Canary is built around one idea: most investors don't lose because they lack information — they lose because they forget to pay attention at the right moment.",
+    "Canary watches your portfolio and warns you before earnings, crashes and key events. Built for retail traders who want intelligence without the noise.",
+  // Replaces the layout's openGraph wholesale (no deep merge), so title and
+  // siteName are repeated here.
+  openGraph: {
+    title: "Canary — Know before it moves",
+    description:
+      "Canary watches your portfolio and warns you before earnings, crashes and key events. Built for retail traders who want intelligence without the noise.",
+    siteName: "Canary",
+  },
 };
 
 const STEPS = [

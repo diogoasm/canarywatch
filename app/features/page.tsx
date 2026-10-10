@@ -212,7 +212,7 @@ export default function FeaturesPage() {
                 Get Started Free
               </Link>
               <Link
-                href="/how-it-works"
+                href="/"
                 className="btn-outline font-playfair text-sm px-6 py-2.5"
               >
                 See how it works
