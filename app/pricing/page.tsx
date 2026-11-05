@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import SiteFooter from "@/components/SiteFooter";
 import UpgradeButton from "@/components/UpgradeButton";
 
 export const metadata: Metadata = {
@@ -280,9 +281,10 @@ export default function PricingPage() {
 
       {/* ── Footnote ── */}
       <p className="font-body text-sm text-text-secondary text-center px-4 pb-20">
-        Prices shown in EUR. Canary is built for retail traders, not Wall
-        Street.
+        Prices shown in EUR.
       </p>
+
+      <SiteFooter />
     </div>
   );
 }

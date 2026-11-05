@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
-import CountUp from "@/components/CountUp";
-import type { Profile } from "@/types";
-import { daysUntil } from "@/lib/utils";
+import type { CanaryStatus, Profile, WatchlistItem } from "@/types";
+import { calculatePnL, daysUntil, resolveCanaryStatus } from "@/lib/utils";
 
 // ─── Local types ───────────────────────────────────────────────────────────
 
@@ -49,7 +48,20 @@ interface Briefing {
   type: string;
 }
 
+interface QuoteData {
+  price?: number;
+  next_earnings_date?: string | null;
+}
+
+interface FreshEarnings {
+  ticker: string;
+  date: string | null;
+  confirmed: boolean;
+}
+
 const MONTHLY_LIMIT = 2;
+const AUTO_REFRESH_HOURS = 20;
+const AUTO_REFRESH_LOCK = "canary-briefing-auto-refresh";
 
 const LOADING_MESSAGES = [
   "Fetching your portfolio data...",
@@ -60,18 +72,46 @@ const LOADING_MESSAGES = [
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-function fmt(n: number, decimals = 2) {
-  return n.toFixed(decimals);
+const TWO_DECIMALS = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+
+function fmtSigned(value: number, prefix = "", suffix = ""): string {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${prefix}${Math.abs(value).toLocaleString("en-US", TWO_DECIMALS)}${suffix}`;
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", {
+function fmtMastheadDate(date: Date): string {
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "long" });
+  const dayMonth = date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
-    year: "numeric",
+  });
+  return `${weekday}, ${dayMonth}`;
+}
+
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function fmtCalendarDate(date: string): string {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+function fmtCountdown(days: number): string {
+  if (days <= 0) return "today";
+  return `in ${days} day${days === 1 ? "" : "s"}`;
+}
+
+function toneClass(value: number): string {
+  if (value > 0) return "text-positive";
+  if (value < 0) return "text-urgent";
+  return "text-text-primary";
 }
 
 function creditsRemaining(profile: Profile): number | null {
@@ -83,41 +123,24 @@ function hoursSince(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60);
 }
 
-// ─── Credit badge ──────────────────────────────────────────────────────────
+function isRefreshDue(briefing: Briefing | null): boolean {
+  return !briefing || hoursSince(briefing.generated_at) > AUTO_REFRESH_HOURS;
+}
 
-function CreditBadge({ profile }: { profile: Profile }) {
-  if (profile.plan === "premium") {
-    return (
-      <span className="inline-flex items-center gap-1.5 bg-canary/15 text-canary-dark font-body text-xs font-semibold px-3 py-1.5 rounded-full">
-        <span className="w-1.5 h-1.5 rounded-full bg-canary inline-block" />
-        Unlimited briefings
-      </span>
-    );
-  }
-
-  const remaining = creditsRemaining(profile)!;
-
-  if (remaining === 0) {
-    return (
-      <a
-        href="/settings"
-        className="inline-flex items-center gap-1.5 bg-canary text-[#1A1A1A] font-body text-xs font-bold px-3 py-1.5 rounded-full hover:bg-canary-dark transition-colors"
-      >
-        Upgrade to Premium
-      </a>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center font-body text-xs text-text-secondary bg-background border border-border px-3 py-1.5 rounded-full">
-      {remaining} briefing{remaining !== 1 ? "s" : ""} remaining this month
-    </span>
-  );
+async function fetchLatestBriefing(userId: string): Promise<Briefing | null> {
+  const { data } = await createClient()
+    .from("briefings")
+    .select("*")
+    .eq("user_id", userId)
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as unknown as Briefing | null;
 }
 
 // ─── Empty / generate state ────────────────────────────────────────────────
 
-function GenerateCard({
+function GeneratePrompt({
   profile,
   onGenerate,
 }: {
@@ -128,46 +151,37 @@ function GenerateCard({
   const canGenerate = profile.plan === "premium" || (remaining ?? 0) > 0;
 
   return (
-    <div className="flex items-center justify-center py-16 px-4">
-      <div className="card p-10 max-w-md w-full text-center flex flex-col items-center gap-5">
-        <div className="w-16 h-16 rounded-2xl bg-canary/10 flex items-center justify-center">
-          <CanaryLogoIcon size={40} />
-        </div>
+    <div className="border-t border-border py-12 max-w-md">
+      <h2 className="font-display text-xl font-bold text-text-primary mb-2">
+        Ready to analyse your portfolio?
+      </h2>
+      <p className="font-body text-sm text-text-secondary leading-relaxed mb-6">
+        Canary will review all your holdings and flag what needs your attention.
+      </p>
 
-        <div>
-          <h2 className="font-display text-xl font-bold text-text-primary mb-2">
-            Ready to analyse your portfolio?
-          </h2>
-          <p className="font-body text-sm text-text-secondary leading-relaxed">
-            Canary will review all your holdings and flag what needs your
-            attention.
-          </p>
-        </div>
+      <button
+        onClick={onGenerate}
+        disabled={!canGenerate}
+        className="bg-canary text-[#1A1A1A] font-playfair text-sm font-bold py-3 px-6 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        Generate My Briefing
+      </button>
 
-        <button
-          onClick={onGenerate}
-          disabled={!canGenerate}
-          className="w-full bg-canary text-[#1A1A1A] font-body text-sm font-bold py-3 px-6 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-card-canary"
-        >
-          Generate My Briefing
-        </button>
+      {profile.plan === "free" && canGenerate && (
+        <p className="font-mono text-xs text-text-secondary mt-4">
+          Uses 1 of your {MONTHLY_LIMIT} monthly briefings
+        </p>
+      )}
 
-        {profile.plan === "free" && canGenerate && (
-          <p className="font-body text-xs text-text-secondary">
-            Uses 1 of your {MONTHLY_LIMIT} monthly briefings
-          </p>
-        )}
-
-        {!canGenerate && (
-          <p className="font-body text-xs text-urgent">
-            No briefings remaining.{" "}
-            <a href="/settings" className="underline">
-              Upgrade to Premium
-            </a>{" "}
-            for unlimited access.
-          </p>
-        )}
-      </div>
+      {!canGenerate && (
+        <p className="font-body text-xs text-urgent mt-4">
+          No briefings remaining.{" "}
+          <a href="/settings" className="underline">
+            Upgrade to Premium
+          </a>{" "}
+          for unlimited access.
+        </p>
+      )}
     </div>
   );
 }
@@ -185,7 +199,7 @@ function GeneratingState() {
   }, []);
 
   return (
-    <div className="flex items-center justify-center py-24 px-4">
+    <div className="flex items-center justify-center py-24 px-4 border-t border-border">
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="animate-pulse">
           <CanaryLogoIcon size={52} />
@@ -210,173 +224,175 @@ function GeneratingState() {
   );
 }
 
-// ─── Briefing cards ────────────────────────────────────────────────────────
+// ─── Briefing sections ─────────────────────────────────────────────────────
 
-function SnapshotCard({ snapshot }: { snapshot: PortfolioSnapshot }) {
-  const pnlUp = snapshot.total_pnl_dollars >= 0;
-
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="card p-6">
-      <h3 className="font-display text-base font-bold text-text-primary mb-5">
-        Portfolio Snapshot
-      </h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 bg-background rounded-lg">
-          <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
-            Total Value
-          </p>
-          <CountUp
-            value={snapshot.total_value}
-            prefix="$"
-            className="font-mono text-lg font-bold text-text-primary"
-          />
-        </div>
+    <h2 className="font-mono text-xs font-normal uppercase tracking-widest text-text-secondary mb-6">
+      {children}
+    </h2>
+  );
+}
 
-        <div className="p-4 bg-background rounded-lg">
-          <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
-            Total P&amp;L
-          </p>
-          <CountUp
-            value={Math.abs(snapshot.total_pnl_dollars)}
-            prefix={pnlUp ? "+$" : "-$"}
-            className={`font-mono text-lg font-bold ${
-              pnlUp ? "text-positive" : "text-urgent"
-            }`}
-          />
-          <CountUp
-            value={snapshot.total_pnl_percent}
-            prefix={pnlUp ? "+" : ""}
-            suffix="%"
-            className={`font-mono text-xs block ${
-              pnlUp ? "text-positive" : "text-urgent"
-            }`}
-          />
-        </div>
+function BriefingSection({
+  index,
+  label,
+  children,
+}: {
+  index: number;
+  label?: string;
+  children: React.ReactNode;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.section
+      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: reduce ? 0 : 0.4,
+        ease: "easeOut",
+        delay: reduce ? 0 : index * 0.08,
+      }}
+      className="border-t border-border py-10 sm:py-12"
+    >
+      {label && <SectionLabel>{label}</SectionLabel>}
+      {children}
+    </motion.section>
+  );
+}
 
-        <div className="p-4 bg-background rounded-lg">
-          <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
-            Best Performer
-          </p>
-          {snapshot.best_performer ? (
-            <>
-              <p className="font-mono text-sm font-bold text-text-primary">
-                {snapshot.best_performer.ticker}
-              </p>
-              <p className="font-mono text-xs text-positive">
-                +{fmt(snapshot.best_performer.pnl_percent)}%
-              </p>
-            </>
-          ) : (
-            <p className="font-mono text-sm text-text-secondary">—</p>
-          )}
-        </div>
+function CanaryStrip({
+  holdings,
+}: {
+  holdings: { id: string; ticker: string; status: CanaryStatus }[];
+}) {
+  return (
+    <ul className="flex flex-wrap gap-x-5 gap-y-6">
+      {holdings.map((holding) => (
+        <li
+          key={holding.id}
+          className="flex flex-col items-center gap-2 min-w-[3rem]"
+        >
+          <CanaryIcon status={holding.status} size={28} />
+          <span className="font-mono text-[11px] text-text-primary">
+            {holding.ticker}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-        <div className="p-4 bg-background rounded-lg">
-          <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
-            Worst Performer
-          </p>
-          {snapshot.worst_performer ? (
-            <>
-              <p className="font-mono text-sm font-bold text-text-primary">
-                {snapshot.worst_performer.ticker}
-              </p>
-              <p className="font-mono text-xs text-urgent">
-                {fmt(snapshot.worst_performer.pnl_percent)}%
-              </p>
-            </>
-          ) : (
-            <p className="font-mono text-sm text-text-secondary">—</p>
-          )}
-        </div>
-      </div>
+function Stat({
+  label,
+  value,
+  note,
+  tone = "text-text-primary",
+  className,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  tone?: string;
+  className: string;
+}) {
+  return (
+    <div className={`min-w-0 ${className}`}>
+      <p className="font-mono text-[10px] uppercase tracking-wider text-text-secondary mb-2">
+        {label}
+      </p>
+      <p
+        className={`font-mono text-lg sm:text-xl xl:text-2xl tabular-nums [overflow-wrap:anywhere] ${tone}`}
+      >
+        {value}
+      </p>
+      {note && (
+        <p className={`font-mono text-xs tabular-nums mt-1 ${tone}`}>{note}</p>
+      )}
     </div>
   );
 }
 
-function fmtEarningsDate(dateStr: string | null): string {
-  if (!dateStr) return "Unknown";
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+function Snapshot({ snapshot }: { snapshot: PortfolioSnapshot }) {
+  const { best_performer: best, worst_performer: worst } = snapshot;
+  const pnlTone = toneClass(snapshot.total_pnl_dollars);
 
-function KeyDatesCard({ dates }: { dates: KeyDate[] }) {
   return (
-    <div className="card p-6 border-l-4 border-l-canary">
-      <h3 className="font-display text-base font-bold text-text-primary mb-4">
-        Key Dates
-      </h3>
-      <div className="flex flex-col gap-4">
-        {dates.map((d) => {
-          // Always recalculate from today — stored days_until goes stale
-          const days = d.earnings_date ? daysUntil(d.earnings_date) : null;
-          const confirmed = d.confirmed !== false; // treat undefined as confirmed (legacy)
-          const isUrgent = confirmed && days !== null && days <= 7;
-          const isWatch = confirmed && days !== null && days > 7 && days <= 21;
-
-          const iconStatus = !confirmed
-            ? "grey"
-            : isUrgent
-            ? "red"
-            : isWatch
-            ? "yellow"
-            : "yellow";
-
-          return (
-            <div key={d.ticker} className="flex items-start gap-3">
-              <div className="shrink-0 mt-0.5">
-                <CanaryIcon status={iconStatus} size={16} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="font-mono text-sm font-bold text-text-primary">
-                    {d.ticker}
-                  </span>
-                  <span className="font-body text-xs text-text-secondary truncate">
-                    {d.company_name}
-                  </span>
-                </div>
-                {d.earnings_date ? (
-                  <p
-                    className={`font-body text-xs mt-0.5 ${
-                      isUrgent
-                        ? "text-urgent font-semibold"
-                        : "text-text-secondary"
-                    }`}
-                  >
-                    {confirmed ? "Earnings confirmed:" : "Earnings estimated:"}{" "}
-                    {confirmed ? "" : "~"}
-                    {fmtEarningsDate(d.earnings_date)}
-                    {days !== null && (
-                      <span className="ml-1 font-medium">
-                        {days < 0
-                          ? "(date has passed — regenerate for updated dates)"
-                          : `(${days} day${days === 1 ? "" : "s"} away)`}
-                      </span>
-                    )}
-                    {!confirmed && (
-                      <span className="ml-1 italic text-text-secondary opacity-70">
-                        — based on historical pattern
-                      </span>
-                    )}
-                  </p>
-                ) : (
-                  <p className="font-body text-xs text-text-secondary mt-0.5">
-                    No earnings date available
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4">
+      <Stat
+        label="Total value"
+        value={`$${snapshot.total_value.toLocaleString("en-US", TWO_DECIMALS)}`}
+        className="pr-4"
+      />
+      <Stat
+        label="Total P&L"
+        value={fmtSigned(snapshot.total_pnl_dollars, "$")}
+        note={fmtSigned(snapshot.total_pnl_percent, "", "%")}
+        tone={pnlTone}
+        className="pl-4 border-l border-border"
+      />
+      <Stat
+        label="Best performer"
+        value={best ? fmtSigned(best.pnl_percent, "", "%") : "—"}
+        note={best?.ticker}
+        tone={best ? toneClass(best.pnl_percent) : undefined}
+        className="pr-4 mt-8 lg:mt-0 lg:pl-4 lg:border-l lg:border-border"
+      />
+      <Stat
+        label="Worst performer"
+        value={worst ? fmtSigned(worst.pnl_percent, "", "%") : "—"}
+        note={worst?.ticker}
+        tone={worst ? toneClass(worst.pnl_percent) : undefined}
+        className="pl-4 mt-8 lg:mt-0 border-l border-border"
+      />
     </div>
   );
 }
 
-function WarningsCard({ warnings }: { warnings: WarningEntry[] }) {
+function ComingUp({ dates }: { dates: KeyDate[] }) {
+  if (dates.length === 0) {
+    return (
+      <p className="font-body text-sm text-text-secondary">
+        No earnings dates coming up.
+      </p>
+    );
+  }
+
+  return (
+    <ul className="divide-y divide-border">
+      {dates.map((d) => {
+        const days = daysUntil(d.earnings_date!);
+        return (
+          <li
+            key={d.ticker}
+            className={`grid grid-cols-[3.5rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3 ${
+              days <= 7 ? "text-urgent" : "text-text-primary"
+            }`}
+          >
+            <span className="font-mono text-sm tabular-nums">
+              {fmtCalendarDate(d.earnings_date!)}
+            </span>
+            <span className="font-mono text-sm font-bold">{d.ticker}</span>
+            <span className="font-body text-sm">
+              Earnings
+              {d.confirmed === false && (
+                <span className="block sm:inline text-text-secondary">
+                  <span className="hidden sm:inline"> · </span>
+                  estimated
+                </span>
+              )}
+            </span>
+            <span className="font-mono text-sm tabular-nums text-right">
+              {fmtCountdown(days)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Warnings({ warnings }: { warnings: WarningEntry[] }) {
   // Normalize: handle both legacy string[] and new {message, severity}[] formats
   const normalized: WarningItem[] = warnings.map((w) =>
     typeof w === "string"
@@ -386,125 +402,71 @@ function WarningsCard({ warnings }: { warnings: WarningEntry[] }) {
 
   if (normalized.length === 0) {
     return (
-      <div className="card p-6 border-l-4 border-l-positive">
-        <h3 className="font-display text-base font-bold text-text-primary mb-2">
-          Canary Warnings
-        </h3>
-        <div className="flex items-center gap-2">
-          <CanaryIcon status="green" size={16} />
-          <p className="font-body text-sm text-positive font-medium">
-            No major warnings at this time.
-          </p>
-        </div>
-      </div>
+      <p className="font-body text-sm text-text-secondary">
+        Nothing needs your attention today.
+      </p>
     );
   }
 
-  const hasRed = normalized.some((w) => w.severity === "red");
-  const borderColor = hasRed ? "border-l-urgent" : "border-l-canary";
+  return (
+    <ul className="divide-y divide-border">
+      {normalized.map((w, i) => (
+        <li key={i} className="flex items-start gap-3 py-3">
+          <CanaryIcon status={w.severity} size={18} className="shrink-0 mt-0.5" />
+          <p className="min-w-0 font-body text-sm text-text-primary leading-relaxed">
+            {w.message}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Outlook({ outlook }: { outlook: string[] }) {
+  if (outlook.length === 0) {
+    return (
+      <p className="font-body text-sm text-text-secondary">
+        No outlook data available.
+      </p>
+    );
+  }
 
   return (
-    <div className={`card p-6 border-l-4 ${borderColor}`}>
-      <h3 className="font-display text-base font-bold text-text-primary mb-4">
-        Canary Warnings
-      </h3>
-      <ul className="flex flex-col gap-3">
-        {normalized.map((w, i) => (
-          <li key={i} className="flex items-start gap-2.5">
-            <div className="shrink-0 mt-0.5">
-              <CanaryIcon status={w.severity} size={16} glow={w.severity === "red"} />
-            </div>
+    <ul className="divide-y divide-border">
+      {outlook.map((line, i) => {
+        const colonIdx = line.indexOf(":");
+        const ticker = colonIdx > 0 ? line.slice(0, colonIdx).trim() : null;
+        const note = colonIdx > 0 ? line.slice(colonIdx + 1).trim() : line;
+        return (
+          <li
+            key={i}
+            className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-baseline gap-x-3 py-3 first:pt-0"
+          >
+            <span className="font-mono text-sm font-bold text-text-primary [overflow-wrap:anywhere]">
+              {ticker}
+            </span>
             <p className="font-body text-sm text-text-primary leading-relaxed">
-              {w.message}
+              {note}
             </p>
           </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function MarketContextCard({ context }: { context: string }) {
-  return (
-    <div className="card p-6 border-l-4 border-l-border">
-      <h3 className="font-display text-base font-bold text-text-primary mb-3">
-        Market Context
-      </h3>
-      <p className="font-body text-sm text-text-primary leading-relaxed">
-        {context}
-      </p>
-    </div>
-  );
-}
-
-function OutlookCard({ outlook }: { outlook: string[] }) {
-  return (
-    <div className="card p-6">
-      <h3 className="font-display text-base font-bold text-text-primary mb-4">
-        Outlook
-      </h3>
-      {outlook.length === 0 ? (
-        <p className="font-body text-sm text-text-secondary">
-          No outlook data available.
-        </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {outlook.map((line, i) => {
-            const colonIdx = line.indexOf(":");
-            const ticker =
-              colonIdx > 0 ? line.slice(0, colonIdx).trim() : null;
-            const note =
-              colonIdx > 0 ? line.slice(colonIdx + 1).trim() : line;
-            return (
-              <li key={i} className="flex items-start gap-3">
-                {ticker && (
-                  <span className="font-mono text-xs font-bold text-text-primary bg-background border border-border px-2 py-0.5 rounded mt-0.5 shrink-0">
-                    {ticker}
-                  </span>
-                )}
-                <p className="font-body text-sm text-text-primary leading-relaxed">
-                  {note}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
+        );
+      })}
+    </ul>
   );
 }
 
 // ─── Full briefing display ─────────────────────────────────────────────────
 
-function RevealCard({
-  index,
-  children,
-}: {
-  index: number;
-  children: React.ReactNode;
-}) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.div
-      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: reduce ? 0 : 0.5,
-        ease: "easeOut",
-        delay: reduce ? 0 : index * 0.15,
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
 function BriefingDisplay({
   briefing,
+  holdings,
+  upcoming,
   canRegenerate,
   onRegenerate,
 }: {
   briefing: Briefing;
+  holdings: { id: string; ticker: string; status: CanaryStatus }[];
+  upcoming: KeyDate[];
   canRegenerate: boolean;
   onRegenerate: () => void;
 }) {
@@ -513,49 +475,29 @@ function BriefingDisplay({
   const ageHours = hoursSince(briefing.generated_at);
   const isStale = ageHours >= 24;
   const ageDays = Math.floor(ageHours / 24);
-  const ageHoursRounded = Math.max(1, Math.floor(ageHours));
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Timestamp + regenerate */}
-      <div className="flex items-center justify-between gap-4">
-        <p
-          className="font-body text-xs text-text-secondary"
-          title={fmtDate(briefing.generated_at)}
-        >
-          {isStale
-            ? `Generated ${fmtDate(briefing.generated_at)}`
-            : `Generated ${ageHoursRounded} hour${ageHoursRounded === 1 ? "" : "s"} ago`}
-        </p>
-        {canRegenerate && (
-          <button
-            onClick={onRegenerate}
-            className="font-body text-xs font-semibold text-text-secondary border border-border rounded-lg px-3 py-1.5 hover:border-canary hover:text-canary-dark transition-colors"
-          >
-            Regenerate
-          </button>
-        )}
-      </div>
-
+    <>
       {/* Staleness warning */}
       {isStale && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-canary/15 border border-canary/50 rounded-lg px-4 py-3">
+        <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-6 gap-y-2 border-t border-border py-4">
           <p className="font-body text-sm text-text-primary flex-1 leading-relaxed">
-            <span aria-hidden="true">⚠</span> This briefing is {ageDays} day
+            This briefing is{" "}
+            <span className="font-mono tabular-nums">{ageDays}</span> day
             {ageDays === 1 ? "" : "s"} old. Stock prices and key dates may have
             changed. Regenerate for current data.
           </p>
           {canRegenerate ? (
             <button
               onClick={onRegenerate}
-              className="shrink-0 bg-canary text-[#1A1A1A] font-body text-xs font-bold px-4 py-2 rounded-lg hover:bg-canary-dark transition-colors"
+              className="shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
             >
-              Regenerate Now
+              Regenerate now
             </button>
           ) : (
             <a
               href="/pricing"
-              className="shrink-0 bg-canary text-[#1A1A1A] font-body text-xs font-bold px-4 py-2 rounded-lg hover:bg-canary-dark transition-colors text-center"
+              className="shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
             >
               Upgrade to Premium to regenerate
             </a>
@@ -563,27 +505,46 @@ function BriefingDisplay({
         </div>
       )}
 
-      <RevealCard index={0}>
-        <SnapshotCard snapshot={c.portfolio_snapshot} />
-      </RevealCard>
-      <RevealCard index={1}>
-        <KeyDatesCard dates={c.key_dates} />
-      </RevealCard>
-      <RevealCard index={2}>
-        <WarningsCard warnings={c.canary_warnings} />
-      </RevealCard>
-      <RevealCard index={3}>
-        <MarketContextCard context={c.market_context} />
-      </RevealCard>
-      <RevealCard index={4}>
-        <OutlookCard outlook={c.outlook} />
-      </RevealCard>
+      {holdings.length > 0 && (
+        <BriefingSection index={0} label="Your portfolio">
+          <CanaryStrip holdings={holdings} />
+        </BriefingSection>
+      )}
 
-      <p className="font-body text-xs text-text-secondary text-center px-4 pb-4 leading-relaxed">
-        {c.disclaimer ||
-          "This briefing is AI-generated for informational purposes only. Not financial advice. Always do your own research before making investment decisions."}
-      </p>
-    </div>
+      <BriefingSection index={1} label="Snapshot">
+        <Snapshot snapshot={c.portfolio_snapshot} />
+      </BriefingSection>
+
+      <BriefingSection index={2} label="Coming up">
+        <ComingUp dates={upcoming} />
+      </BriefingSection>
+
+      <BriefingSection index={3} label="Warnings">
+        <Warnings warnings={c.canary_warnings} />
+      </BriefingSection>
+
+      <BriefingSection index={4}>
+        <div className="grid lg:grid-cols-2 gap-x-12 gap-y-10">
+          <div className="min-w-0">
+            <SectionLabel>Market context</SectionLabel>
+            <p className="font-body text-sm sm:text-base text-text-primary leading-relaxed">
+              {c.market_context}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <SectionLabel>Outlook</SectionLabel>
+            <Outlook outlook={c.outlook} />
+          </div>
+        </div>
+      </BriefingSection>
+
+      <BriefingSection index={5}>
+        <p className="font-body text-xs text-text-secondary leading-relaxed">
+          {c.disclaimer ||
+            "This briefing is AI-generated for informational purposes only. Not financial advice. Always do your own research before making investment decisions."}
+        </p>
+      </BriefingSection>
+    </>
   );
 }
 
@@ -592,48 +553,17 @@ function BriefingDisplay({
 export default function AdvisorPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [briefing, setBriefing] = useState<Briefing | null>(null);
+  const [holdings, setHoldings] = useState<WatchlistItem[]>([]);
+  const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
+  const [freshDates, setFreshDates] = useState<Record<string, FreshEarnings>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasFetched = useRef(false);
 
-  useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
-
-    async function load() {
-      const supabase = createClient();
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const [profileResult, briefingResult] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).single(),
-        supabase
-          .from("briefings")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("generated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-
-      if (profileResult.data) setProfile(profileResult.data as Profile);
-      if (briefingResult.data)
-        setBriefing(briefingResult.data as unknown as Briefing);
-
-      setLoading(false);
-    }
-
-    load();
-  }, []);
-
-  async function refetchProfile() {
+  const refetchProfile = useCallback(async () => {
     const supabase = createClient();
     const {
       data: { user },
@@ -645,9 +575,9 @@ export default function AdvisorPage() {
       .eq("id", user.id)
       .single();
     if (data) setProfile(data as Profile);
-  }
+  }, []);
 
-  async function handleGenerate() {
+  const handleGenerate = useCallback(async () => {
     setError(null);
     setGenerating(true);
 
@@ -668,85 +598,250 @@ export default function AdvisorPage() {
     } finally {
       setGenerating(false);
     }
-  }
+  }, [refetchProfile]);
+
+  // The route's 2-minute check can't stop two tabs at once: the briefing only
+  // exists once Claude has finished, so both would find nothing and both would
+  // call it. The lock makes a second tab wait, then read what the first made.
+  const autoRefresh = useCallback(
+    async (userId: string) => {
+      const refresh = async () => {
+        const latest = await fetchLatestBriefing(userId);
+        if (isRefreshDue(latest)) {
+          await handleGenerate();
+        } else {
+          setBriefing(latest);
+          setGenerating(false);
+        }
+      };
+
+      if ("locks" in navigator) {
+        await navigator.locks.request(AUTO_REFRESH_LOCK, refresh);
+      } else {
+        await refresh();
+      }
+    },
+    [handleGenerate]
+  );
+
+  useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    async function load() {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const [profileResult, latest, watchlistResult] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).single(),
+        fetchLatestBriefing(user.id),
+        supabase
+          .from("watchlist")
+          .select("*")
+          .order("added_at", { ascending: true }),
+      ]);
+
+      const loadedProfile = profileResult.data as Profile | null;
+      const loadedHoldings = (watchlistResult.data ?? []) as WatchlistItem[];
+
+      if (loadedProfile) setProfile(loadedProfile);
+      if (latest) setBriefing(latest);
+      setHoldings(loadedHoldings);
+
+      // With nothing to analyse the route would only return an error, on every
+      // page load.
+      const shouldRefresh =
+        loadedProfile?.plan === "premium" &&
+        loadedHoldings.length > 0 &&
+        isRefreshDue(latest);
+
+      if (shouldRefresh) setGenerating(true);
+      setLoading(false);
+      if (shouldRefresh) await autoRefresh(user.id);
+    }
+
+    load();
+  }, [autoRefresh]);
+
+  // Live quotes for the canary strip, so it shows today's status rather than
+  // whatever was true when the briefing was written.
+  useEffect(() => {
+    if (holdings.length === 0) return;
+    let cancelled = false;
+
+    Promise.all(
+      holdings.map(async ({ ticker }) => {
+        try {
+          const res = await fetch(`/api/stock/quote?ticker=${ticker}`);
+          return [ticker, (await res.json()) as QuoteData] as const;
+        } catch {
+          return [ticker, {} as QuoteData] as const;
+        }
+      })
+    ).then((entries) => {
+      if (!cancelled) setQuotes(Object.fromEntries(entries));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [holdings]);
+
+  // A saved briefing outlives its dates. Anything that has passed is fetched
+  // fresh, and stays hidden until then.
+  useEffect(() => {
+    if (!briefing) return;
+
+    const passed = briefing.content.key_dates
+      .filter((d) => d.earnings_date && daysUntil(d.earnings_date) < 0)
+      .map((d) => d.ticker);
+    if (passed.length === 0) return;
+
+    let cancelled = false;
+
+    fetch(`/api/stock/earnings?tickers=${encodeURIComponent(passed.join(","))}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { earnings: FreshEarnings[] } | null) => {
+        if (cancelled || !json) return;
+        setFreshDates(
+          Object.fromEntries(json.earnings.map((e) => [e.ticker, e]))
+        );
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [briefing]);
 
   const canRegenerate =
     profile !== null &&
-    (profile.plan === "premium" ||
-      creditsRemaining(profile)! > 0);
+    (profile.plan === "premium" || creditsRemaining(profile)! > 0);
+
+  const canaries = holdings.map((item) => {
+    const quote = quotes[item.ticker];
+    const price = quote?.price;
+    const status: CanaryStatus =
+      price != null && !isNaN(price)
+        ? resolveCanaryStatus(
+            calculatePnL(item.shares, item.avg_buy_price, price).percent,
+            quote.next_earnings_date ?? null
+          )
+        : "grey";
+    return { id: item.id, ticker: item.ticker, status };
+  });
+
+  const upcoming = (briefing?.content.key_dates ?? [])
+    .map((d) => {
+      const fresh = freshDates[d.ticker];
+      return fresh
+        ? { ...d, earnings_date: fresh.date, confirmed: fresh.confirmed }
+        : d;
+    })
+    .filter((d) => d.earnings_date && daysUntil(d.earnings_date) >= 0)
+    .sort((a, b) => a.earnings_date!.localeCompare(b.earnings_date!));
+
+  const showBriefing = !loading && !generating && briefing !== null;
+  const creditsLeft = profile ? creditsRemaining(profile) : null;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      {/* ── Masthead ── */}
+      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-x-6 gap-y-3 pb-8">
         <div>
-          <h1 className="font-display text-3xl font-bold text-text-primary">
-            AI Advisor
-          </h1>
-          <p className="font-body text-sm text-text-secondary mt-1">
-            Your personal portfolio briefing.
+          <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-3">
+            Morning briefing
           </p>
+          {loading ? (
+            <div className="h-10 w-64 max-w-full bg-border animate-pulse" />
+          ) : (
+            <h1 className="font-display text-3xl sm:text-4xl font-bold text-text-primary leading-tight">
+              {fmtMastheadDate(
+                showBriefing ? new Date(briefing.generated_at) : new Date()
+              )}
+            </h1>
+          )}
         </div>
-        {profile && !loading && (
-          <div className="sm:mt-1">
-            <CreditBadge profile={profile} />
+
+        {!loading && !generating && (
+          <div className="flex flex-col sm:items-end gap-1 shrink-0">
+            {showBriefing && (
+              <div className="flex items-baseline gap-4">
+                <p className="font-mono text-xs tabular-nums text-text-secondary">
+                  Generated {fmtTime(briefing.generated_at)}
+                </p>
+                {canRegenerate && (
+                  <button
+                    onClick={handleGenerate}
+                    className="font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
+                  >
+                    Regenerate
+                  </button>
+                )}
+              </div>
+            )}
+            {creditsLeft !== null &&
+              (creditsLeft > 0 ? (
+                <p className="font-mono text-xs tabular-nums text-text-secondary">
+                  {creditsLeft} briefing{creditsLeft === 1 ? "" : "s"} remaining
+                  this month
+                </p>
+              ) : (
+                <a
+                  href="/settings"
+                  className="font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
+                >
+                  Upgrade to Premium
+                </a>
+              ))}
           </div>
         )}
-      </div>
+      </header>
 
-      {/* ── Error banner ── */}
+      {/* ── Error ── */}
       {error && (
-        <div className="mb-6 font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
+        <p className="border-t border-border py-4 font-body text-sm text-urgent">
           {error}
-        </div>
+        </p>
       )}
 
       {/* ── Content ── */}
       {loading ? (
-        <div className="flex flex-col gap-4">
+        <div className="border-t border-border py-10 flex flex-col gap-4">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="card p-6 animate-pulse"
-            >
-              <div className="h-4 bg-border rounded w-32 mb-4" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-16 bg-background rounded-lg" />
-                <div className="h-16 bg-background rounded-lg" />
-              </div>
-            </div>
+            <div key={i} className="h-1 w-full bg-border animate-pulse" />
           ))}
         </div>
       ) : generating ? (
         <GeneratingState />
       ) : briefing ? (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={briefing.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <BriefingDisplay
-              briefing={briefing}
-              canRegenerate={canRegenerate}
-              onRegenerate={handleGenerate}
-            />
-          </motion.div>
-        </AnimatePresence>
-      ) : profile ? (
-        <GenerateCard profile={profile} onGenerate={handleGenerate} />
-      ) : (
-        <div className="card p-8 text-center">
-          <p className="font-body text-sm text-text-secondary">
-            Please{" "}
-            <a href="/login" className="text-canary-dark underline">
-              sign in
-            </a>{" "}
-            to use the AI Advisor.
-          </p>
+        // Keyed so a new briefing replays the fade.
+        <div key={briefing.id}>
+          <BriefingDisplay
+            briefing={briefing}
+            holdings={canaries}
+            upcoming={upcoming}
+            canRegenerate={canRegenerate}
+            onRegenerate={handleGenerate}
+          />
         </div>
+      ) : profile ? (
+        <GeneratePrompt profile={profile} onGenerate={handleGenerate} />
+      ) : (
+        <p className="border-t border-border py-10 font-body text-sm text-text-secondary">
+          Please{" "}
+          <a href="/login" className="underline">
+            sign in
+          </a>{" "}
+          to use the AI Advisor.
+        </p>
       )}
     </div>
   );

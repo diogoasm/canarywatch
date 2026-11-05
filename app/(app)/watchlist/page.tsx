@@ -8,7 +8,7 @@ import CountUp from "@/components/CountUp";
 import MarketMovers from "@/components/MarketMovers";
 import StockSearch from "@/components/StockSearch";
 import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
-import { calculatePnL, daysUntil } from "@/lib/utils";
+import { calculatePnL, daysUntil, resolveCanaryStatus } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -35,20 +35,6 @@ type NewsState =
   | { status: "loaded"; articles: NewsArticle[] };
 
 // ─── Canary flag logic ─────────────────────────────────────────────────────
-
-function resolveCanaryStatus(
-  pnlPercent: number,
-  earningsDate: string | null
-): CanaryStatus {
-  if (earningsDate) {
-    const days = daysUntil(earningsDate);
-    if (days >= 1 && days <= 7) return "red";
-    if (days >= 8 && days <= 21) return "yellow";
-  }
-  if (pnlPercent <= -10) return "red";
-  if (pnlPercent >= 10) return "green";
-  return "grey";
-}
 
 function resolveCanaryTooltip(
   pnlPercent: number,

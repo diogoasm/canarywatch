@@ -65,6 +65,21 @@ export function daysUntil(dateString: string): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
+// Shared by every page that shows a holding's canary.
+export function resolveCanaryStatus(
+  pnlPercent: number,
+  earningsDate: string | null
+): CanaryStatus {
+  if (earningsDate) {
+    const days = daysUntil(earningsDate);
+    if (days >= 1 && days <= 7) return "red";
+    if (days >= 8 && days <= 21) return "yellow";
+  }
+  if (pnlPercent <= -10) return "red";
+  if (pnlPercent >= 10) return "green";
+  return "grey";
+}
+
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
+import CanaryIcon from "@/components/CanaryIcon";
 import IntelChart, { type DailyClose } from "@/components/IntelChart";
 import MarketMovers from "@/components/MarketMovers";
 import Reveal from "@/components/Reveal";
+import SiteFooter from "@/components/SiteFooter";
 
 const INTC_HISTORY_URL =
   "https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=INTC&from=2026-01-01&to=2026-05-31";
@@ -196,41 +197,7 @@ export default async function FeaturesPage() {
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer className="border-t border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <CanaryLogoIcon size={22} />
-              <span className="font-display text-base font-semibold text-text-primary">
-                Canary
-              </span>
-            </div>
-
-            {/* Links */}
-            <div className="flex items-center gap-6">
-              <Link
-                href="/privacy"
-                className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
-              >
-                Privacy
-              </Link>
-              <Link
-                href="/terms"
-                className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
-              >
-                Terms
-              </Link>
-            </div>
-
-            {/* Tagline */}
-            <p className="font-body text-sm text-text-secondary italic">
-              Built for retail traders. Not Wall Street.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

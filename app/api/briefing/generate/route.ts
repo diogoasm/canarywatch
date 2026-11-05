@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { daysUntil } from "@/lib/utils";
+import { pickNextEarnings } from "@/lib/earnings";
 import {
   getEarningsCalendar as getFmpEarnings,
   getAnalystEstimates,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/finnhub";
 
 const MONTHLY_LIMIT = 2;
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 
 const SYSTEM_PROMPT = `You are Canary, a professional AI trading coach for retail investors. You receive detailed financial data including earnings history, analyst estimates, price targets, and fundamental metrics. Use ALL of this data to give a specific, data-driven briefing.
 
@@ -63,12 +65,6 @@ function beatMissLabel(pct: number | null): string {
     : `MISS by ${Math.abs(pct).toFixed(1)}%`;
 }
 
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split("T")[0];
-}
-
 // ─── Route handler ─────────────────────────────────────────────────────────
 
 export async function POST() {
@@ -79,6 +75,24 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // A briefing this recent is the answer. It also means a double click or a
+  // second tab costs neither a Claude call nor a Free user's credit.
+  const { data: recentBriefing } = await supabase
+    .from("briefings")
+    .select("*")
+    .eq("user_id", user.id)
+    .gte(
+      "generated_at",
+      new Date(Date.now() - DUPLICATE_WINDOW_MS).toISOString()
+    )
+    .order("generated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recentBriefing) {
+    return NextResponse.json({ briefing: recentBriefing });
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -189,19 +203,8 @@ export async function POST() {
 
         // ── Resolve earnings date: FMP → Finnhub upcoming → Finnhub +91d estimate ──
 
-        let nextEarningsDate: string | null = null;
-        let earningsConfirmed = false;
-
-        if (fmpEarnings.next_date !== null) {
-          nextEarningsDate = fmpEarnings.next_date;
-          earningsConfirmed = fmpEarnings.confirmed;
-        } else if (fhUpcoming.length > 0) {
-          nextEarningsDate = fhUpcoming[0].date;
-          earningsConfirmed = true;
-        } else if (fhRecent.length > 0 && fhRecent[0].period) {
-          nextEarningsDate = addDays(fhRecent[0].period, 91);
-          earningsConfirmed = false;
-        }
+        const { date: nextEarningsDate, confirmed: earningsConfirmed } =
+          pickNextEarnings(fmpEarnings, fhUpcoming, fhRecent);
 
         // ── Resolve last quarter: FMP → Finnhub stock/earnings ────────────────
 
@@ -543,10 +546,14 @@ Return ONLY a valid JSON object with exactly these keys:
     );
   }
 
-  await supabase
-    .from("profiles")
-    .update({ briefings_used: briefingsUsed + 1 })
-    .eq("id", user.id);
+  // Premium is unlimited. Counting it anyway would leave someone who downgrades
+  // with no Free briefings for the rest of the month.
+  if (profile.plan === "free") {
+    await supabase
+      .from("profiles")
+      .update({ briefings_used: briefingsUsed + 1 })
+      .eq("id", user.id);
+  }
 
   return NextResponse.json({ briefing: savedBriefing });
 }
