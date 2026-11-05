@@ -1,45 +1,65 @@
-"use client";
-
 import Link from "next/link";
-import { motion, useReducedMotion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
+import IntelChart, { type DailyClose } from "@/components/IntelChart";
 import MarketMovers from "@/components/MarketMovers";
+import Reveal from "@/components/Reveal";
 
-// ─── Feature cards ─────────────────────────────────────────────────────────
+const INTC_HISTORY_URL =
+  "https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=INTC&from=2026-01-01&to=2026-05-31";
 
-function FeatureCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  // Dark surface card — the `card` utility's white fill and warm-black shadow
-  // both disappear on #1A1A1A, so the hover cue is a border lift instead.
+const CAPABILITIES = [
+  {
+    number: "01",
+    title: "Canary warnings",
+    body: "Every stock you hold gets a canary. Red means act soon, yellow means watch, green means good news. Checked every time you open the app.",
+  },
+  {
+    number: "02",
+    title: "Briefings on your numbers",
+    body: "A short memo built from what you actually paid and how much you hold. Not generic market commentary.",
+  },
+  {
+    number: "03",
+    title: "Tools to decide yourself",
+    body: "DCF and DDM valuation, a research guide, and a pre-trade checklist. Canary never tells you to buy or sell.",
+  },
+];
+
+// Returns null on failure: the story still reads without the chart.
+async function getIntelCloses(): Promise<DailyClose[] | null> {
+  const apiKey = process.env.FMP_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(`${INTC_HISTORY_URL}&apikey=${apiKey}`, {
+      next: { revalidate: 86400 }, // history never changes
+    });
+    if (!res.ok) return null;
+
+    const data: unknown = await res.json();
+    if (!Array.isArray(data)) return null;
+
+    // The light endpoint calls the close `price` and lists newest first.
+    return (data as { date: string; price: number }[])
+      .map(({ date, price }) => ({ date, close: price }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return null;
+  }
+}
+
+// Numbers and dates stay in DM Mono, even inside body copy.
+function Figure({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[#2A2A2A] rounded-card border border-[#3A3A3A] hover:border-[#4A4A4A] transition-colors duration-200 p-6 flex flex-col gap-4">
-      <div className="w-10 h-10 flex items-center justify-center">
-        {icon}
-      </div>
-      <div>
-        <h3 className="font-playfair text-lg font-semibold text-white mb-2">
-          {title}
-        </h3>
-        <p className="font-body text-sm text-[#B0B0B0] leading-relaxed">
-          {description}
-        </p>
-      </div>
-    </div>
+    <span className="font-mono text-[0.92em] tabular-nums whitespace-nowrap">
+      {children}
+    </span>
   );
 }
 
-// ─── Page ──────────────────────────────────────────────────────────────────
-
-export default function FeaturesPage() {
-  const reduce = useReducedMotion();
+export default async function FeaturesPage() {
+  const closes = await getIntelCloses();
 
   return (
     <div className="min-h-screen bg-background">
@@ -47,23 +67,16 @@ export default function FeaturesPage() {
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="grid lg:grid-cols-2 gap-16 items-center"
-        >
-          {/* Copy */}
-          <div className="flex flex-col gap-8">
+        <Reveal className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="flex flex-col gap-8 min-w-0">
             <div>
               <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight tracking-tight mb-5">
                 Know before
                 <br />
                 it moves.
               </h1>
-              <p className="font-body text-base text-text-secondary leading-relaxed max-w-md">
-                Canary watches your portfolio and warns you before earnings,
-                crashes, and key events — so you never miss what matters.
+              <p className="font-body text-base text-text-secondary leading-relaxed">
+                Canary warns you before earnings, crashes and key events.
               </p>
             </div>
 
@@ -72,7 +85,7 @@ export default function FeaturesPage() {
                 href="/signup"
                 className="btn-primary font-playfair text-sm px-6 py-2.5"
               >
-                Get Started Free
+                Get started free
               </Link>
               <Link
                 href="/"
@@ -81,183 +94,107 @@ export default function FeaturesPage() {
                 See how it works
               </Link>
             </div>
-
-            <div className="flex items-center gap-6 pt-2">
-              <div className="flex items-center gap-2">
-                <CanaryIcon status="red" size={16} />
-                <span className="font-body text-xs text-text-secondary">
-                  Earnings alerts
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CanaryIcon status="yellow" size={16} />
-                <span className="font-body text-xs text-text-secondary">
-                  Risk flags
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CanaryIcon status="green" size={16} />
-                <span className="font-body text-xs text-text-secondary">
-                  Positive signals
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Mock UI */}
-          <div className="lg:flex lg:justify-end">
-            <div className="w-full">
-              <MarketMovers />
-              {/* Briefing preview card */}
-              <div className="card mt-3 p-3.5">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-full bg-[#FFF8E1] flex items-center justify-center shrink-0">
-                    <CanaryLogoIcon size={15} />
-                  </div>
-                  <div>
-                    <p className="font-playfair text-xs font-semibold text-text-primary mb-1">
-                      Canary Briefing
-                    </p>
-                    <p className="font-body text-[11px] text-text-secondary leading-relaxed">
-                      e.g.{" "}
-                      <span className="text-canary-dark font-medium">NVDA</span>{" "}
-                      earnings in 12 days — analyst consensus is Strong Buy.
-                      Consider your strategy before the print.
-                    </p>
-                    <p className="font-body text-[10px] italic text-text-secondary/60 mt-1.5">
-                      Example briefing
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="min-w-0">
+            <MarketMovers />
           </div>
-        </motion.div>
+        </Reveal>
       </section>
 
-      {/* ── Divider ──────────────────────────────────────────────────────── */}
-      <div className="border-t border-border" />
+      {/* ── Why this exists ──────────────────────────────────────────────── */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+          <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-5">
+            Why this exists
+          </p>
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary leading-tight tracking-tight text-balance">
+            I sold Intel two days before earnings.
+          </h2>
 
-      {/* ── Features ─────────────────────────────────────────────────────── */}
-      <section
-        id="features"
-        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 overflow-x-clip"
-      >
-        <div className="text-center">
-          <div>
-            <div className="relative inline-block">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute z-0"
-                style={{ bottom: -20, right: -30, opacity: 0.07 }}
-              >
-                <CanaryLogoIcon size={120} color="#2D9E6B" />
-              </span>
-              <h2 className="section-heading mb-4 relative z-[1]">
-                Everything you need to stay ahead.
-              </h2>
-            </div>
+          {closes && <IntelChart closes={closes} />}
+
+          <div className="mt-12 max-w-[60ch] font-body text-base sm:text-lg text-text-primary leading-relaxed space-y-5">
+            <p>
+              I bought Intel in January and sold it on{" "}
+              <Figure>21 April</Figure>, up <Figure>50%</Figure>. I was happy
+              with that.
+            </p>
+            <p>
+              Two days later Intel reported earnings. The next day the stock
+              rose about <Figure>24%</Figure>, its biggest one-day gain since{" "}
+              <Figure>1987</Figure>. I hadn&apos;t looked at the date. A tool
+              that knew what I held would have told me. So I built one.
+            </p>
           </div>
-          <div>
-            <div className="relative inline-block">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute z-0"
-                style={{ bottom: -20, left: -30, opacity: 0.07 }}
-              >
-                <CanaryLogoIcon size={120} color="#E03B3B" />
+
+          <p className="mt-6 font-mono text-xs text-text-secondary">
+            — Diogo, founder
+          </p>
+
+          <div className="mt-10 flex items-center gap-3 border-l-2 border-canary pl-4 py-1">
+            <CanaryIcon status="red" size={16} className="shrink-0" />
+            <p className="font-body text-sm text-text-primary">
+              <span className="block sm:inline">
+                Canary would have flagged it:{" "}
               </span>
-              <p className="section-subheading max-w-xl mx-auto relative z-[1]">
-                Built for retail traders who want intelligence without the noise.
-              </p>
-            </div>
+              <span className="font-mono tabular-nums">
+                INTC · earnings in 2 days
+              </span>
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ── Light → dark transition ── */}
-      {/* A gradient strip rather than a hard edge, so the switch into the
-          card section reads as a fade instead of a seam. */}
-      <div
-        aria-hidden
-        className="h-20 sm:h-28 bg-gradient-to-b from-background to-[#1A1A1A]"
-      />
+      {/* ── What Canary does ─────────────────────────────────────────────── */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+          <h2 className="font-mono text-xs font-normal uppercase tracking-widest text-text-secondary mb-8">
+            What Canary does
+          </h2>
 
-      {/* ── Feature cards (dark) ─────────────────────────────────────────── */}
-      <section className="bg-[#1A1A1A] pb-24 sm:pb-32">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-3 gap-6">
-          <FeatureCard
-            icon={
-              <CanaryIcon status="red" size={32} />
-            }
-            title="Canary Warnings"
-            description="Color-coded canary icons flag earnings dates, sector risks and key events automatically every time you open your watchlist."
-          />
-          <FeatureCard
-            icon={
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect
-                  width="32"
-                  height="32"
-                  rx="8"
-                  fill="#F5C842"
-                  fillOpacity="0.12"
-                />
-                <path
-                  d="M9 22l4-8 4 4 3-6 3 4"
-                  stroke="#D4A800"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle cx="23" cy="10" r="2.5" fill="#F5C842" />
-              </svg>
-            }
-            title="AI Briefings"
-            description="Get a personalized portfolio briefing powered by real data and your exact positions — not generic market commentary."
-          />
-          <FeatureCard
-            icon={
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect
-                  width="32"
-                  height="32"
-                  rx="8"
-                  fill="#2D9E6B"
-                  fillOpacity="0.10"
-                />
-                <path
-                  d="M8 16h3l3-6 4 12 3-8 2 2h3"
-                  stroke="#2D9E6B"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            }
-            title="Your Numbers, Not Guesses"
-            description="Canary calculates your real P&L, percentage gains and risk based on what you actually paid and how many shares you hold."
-          />
+          <ol className="border-t border-border">
+            {CAPABILITIES.map(({ number, title, body }, index) => (
+              <li key={number} className="border-b border-border">
+                <Reveal
+                  delay={index * 0.06}
+                  className="grid grid-cols-[2.5rem_minmax(0,1fr)] md:grid-cols-[4rem_minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-x-4 md:gap-x-6 gap-y-2 py-8 sm:py-10"
+                >
+                  <span className="font-mono text-sm tabular-nums text-canary">
+                    {number}
+                  </span>
+                  <h3 className="font-display text-xl sm:text-2xl text-text-primary">
+                    {title}
+                  </h3>
+                  <p className="col-start-2 md:col-start-3 font-body text-sm sm:text-base text-text-secondary leading-relaxed">
+                    {body}
+                  </p>
+                </Reveal>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* ── Dark → light transition ── */}
-      <div
-        aria-hidden
-        className="h-20 sm:h-28 bg-gradient-to-b from-[#1A1A1A] to-background"
-      />
+      {/* ── Close ────────────────────────────────────────────────────────── */}
+      <section className="bg-[#1A1A1A]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 flex flex-col items-start gap-8">
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight text-balance">
+            Don&apos;t find out the day after.
+          </h2>
+          <div className="flex flex-col items-start gap-4">
+            <Link
+              href="/signup"
+              className="btn-primary font-playfair text-sm px-6 py-2.5"
+            >
+              Start watching for free
+            </Link>
+            <p className="font-mono text-xs text-[#B0B0B0]">
+              Free. No card needed.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
       <footer className="border-t border-border">
