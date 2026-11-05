@@ -109,7 +109,7 @@ export default function FeaturesPage() {
             <div className="w-full">
               <MarketMovers />
               {/* Briefing preview card */}
-              <div className="card mt-3 p-3.5 max-w-xs mx-auto lg:mr-0">
+              <div className="card mt-3 p-3.5">
                 <div className="flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-[#FFF8E1] flex items-center justify-center shrink-0">
                     <CanaryLogoIcon size={15} />
@@ -141,7 +141,7 @@ export default function FeaturesPage() {
       {/* ── Features ─────────────────────────────────────────────────────── */}
       <section
         id="features"
-        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16"
+        className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16 overflow-x-clip"
       >
         <div className="text-center">
           <div>

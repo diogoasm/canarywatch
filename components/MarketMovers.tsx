@@ -30,6 +30,10 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const ROW_COUNT = 8;
 
+const MARKET_TIME_ZONE = "America/New_York";
+const MARKET_OPEN = 9 * 60 + 30; // minutes after midnight, ET
+const MARKET_CLOSE = 16 * 60;
+
 // The header and each row are separate grids, so the tracks are fixed widths
 // to keep the columns aligned.
 const COLUMNS =
@@ -54,6 +58,37 @@ function formatTime(iso: string): string {
     minute: "2-digit",
     hourCycle: "h23",
   });
+}
+
+function isMarketHours(date: Date): boolean {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: MARKET_TIME_ZONE,
+    weekday: "short",
+    hour: "numeric",
+    minute: "numeric",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value;
+
+  const minutes = Number(part("hour")) * 60 + Number(part("minute"));
+  const weekday = part("weekday") !== "Sat" && part("weekday") !== "Sun";
+  return weekday && minutes >= MARKET_OPEN && minutes < MARKET_CLOSE;
+}
+
+function marketLabel(updatedAt: string): string {
+  const now = new Date();
+  if (!isMarketHours(now)) return "Last session · market closed";
+
+  // The first visitor after the cache expires gets the old response while it
+  // regenerates, so on a quiet morning that can still be yesterday's data.
+  // HH:MM carries no date, so "Live" has to mean this session's numbers.
+  const updated = new Date(updatedAt);
+  const marketDay = (d: Date) =>
+    d.toLocaleDateString("en-US", { timeZone: MARKET_TIME_ZONE });
+  const thisSession =
+    isMarketHours(updated) && marketDay(updated) === marketDay(now);
+
+  return thisSession ? `Live · updated ${formatTime(updatedAt)}` : "Last session";
 }
 
 function toneClass(value: number): string {
@@ -196,9 +231,18 @@ export default function MarketMovers({ className }: { className?: string }) {
         </div>
       )}
 
-      <p className="mt-3 font-mono text-[11px] text-text-secondary">
+      {/* Too long for one line on a phone, so it breaks at the separator. The
+          line is kept but hidden while loading so nothing jumps on arrival. */}
+      <p
+        className={`mt-3 font-mono text-[11px] text-text-secondary ${
+          data ? "" : "invisible"
+        }`}
+      >
+        <span className="block sm:inline">
+          {data ? marketLabel(data.updatedAt) : " "}
+        </span>
+        <span className="hidden sm:inline"> · </span>
         Data via Financial Modeling Prep
-        {data && ` · updated ${formatTime(data.updatedAt)}`}
       </p>
     </section>
   );
