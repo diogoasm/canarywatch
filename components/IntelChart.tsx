@@ -13,12 +13,15 @@ const SOLD_ON = "2026-04-21";
 const EARNINGS_ON = "2026-04-23";
 const PEAK_FROM = "2026-04-24";
 const PEAK_TO = "2026-04-30";
+const MAY_FROM = "2026-05-01";
+const MAY_TO = "2026-05-31";
 
 // The trade prices are the real fills, not the closes, so these labels sit a
 // few cents off the line they mark.
 const BOUGHT_LABEL = "Bought $43.84";
 const SOLD_LABEL = "Sold $65.72 · +50%";
 const EARNINGS_LABEL = "Earnings";
+const PEAK_NOTE = "about a week later";
 
 const MONTHS = [
   { label: "Jan", start: "2026-01-01" },
@@ -36,7 +39,7 @@ const RED = "#E03B3B";
 const RULE = "#E8E4DC";
 const PAPER = "#F7F5F0";
 
-const PAD_TOP = 20;
+const PAD_TOP = 28;
 const PAD_BOTTOM = 28;
 const DRAW_MS = 1200;
 
@@ -52,14 +55,22 @@ function formatDay(date: string): string {
 
 function findStory(closes: DailyClose[]) {
   const on = (date: string) => closes.find((c) => c.date === date);
+  const highestBetween = (from: string, to: string) =>
+    closes
+      .filter((c) => c.date >= from && c.date <= to)
+      .reduce<DailyClose | null>(
+        (high, c) => (!high || c.close > high.close ? c : high),
+        null
+      );
+
   const bought = on(BOUGHT_ON);
   const sold = on(SOLD_ON);
   const earnings = on(EARNINGS_ON);
-  const week = closes.filter((c) => c.date >= PEAK_FROM && c.date <= PEAK_TO);
-  if (!bought || !sold || !earnings || week.length === 0) return null;
+  const peak = highestBetween(PEAK_FROM, PEAK_TO);
+  const mayHigh = highestBetween(MAY_FROM, MAY_TO);
+  if (!bought || !sold || !earnings || !peak || !mayHigh) return null;
 
-  const peak = week.reduce((high, c) => (c.close > high.close ? c : high));
-  return { bought, sold, earnings, peak };
+  return { bought, sold, earnings, peak, mayHigh };
 }
 
 function Dot({ color }: { color: string }) {
@@ -103,8 +114,9 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
   const story = findStory(closes);
   if (!story) return null;
 
-  const { bought, sold, earnings, peak } = story;
+  const { bought, sold, earnings, peak, mayHigh } = story;
   const peakPrice = `$${peak.close.toFixed(2)}`;
+  const mayLabel = `$${Math.round(mayHigh.close)} by ${formatDay(mayHigh.date)}`;
   const visible = drawn || Boolean(reduce);
 
   const legend = [
@@ -117,9 +129,10 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
     },
     {
       day: formatDay(peak.date),
-      label: `${peakPrice} one week later`,
+      label: `${peakPrice} ${PEAK_NOTE}`,
       mark: <Dot color={GREY} />,
     },
+    { day: formatDay(mayHigh.date), label: mayLabel, mark: <Dot color={GREY} /> },
   ];
 
   function renderChart(width: number, height: number) {
@@ -153,6 +166,8 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
     const soldY = y(sold.close);
     const peakX = x(peak.date);
     const peakY = y(peak.close);
+    const mayX = x(mayHigh.date);
+    const mayY = y(mayHigh.close);
 
     const dot = (cx: number, cy: number, fill: string) => (
       <circle cx={cx} cy={cy} r={4} fill={fill} stroke={PAPER} strokeWidth={2} />
@@ -219,13 +234,14 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
         <g style={appear(0)}>{dot(x(bought.date), y(bought.close), GREEN)}</g>
         <g style={appear(1)}>{dot(soldX, soldY, CANARY)}</g>
         <g style={appear(3)}>{dot(peakX, peakY, GREY)}</g>
+        <g style={appear(4)}>{dot(mayX, mayY, GREY)}</g>
 
-        {/* Three of the markers sit within 8 days of each other, so on a phone
-            these give way to the legend below the chart. */}
+        {/* Three of the markers sit within 8 days of each other, so on narrower
+            screens these give way to the legend below the chart. */}
         <g
           fontSize={11}
           fill={INK}
-          className="hidden sm:block font-mono tabular-nums"
+          className="hidden md:block font-mono tabular-nums"
         >
           <text x={x(bought.date) + 10} y={y(bought.close) + 18} style={appear(0)}>
             {BOUGHT_LABEL}
@@ -247,8 +263,11 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
           <text x={peakX + 10} y={peakY + 18} style={appear(3)}>
             <tspan>{peakPrice}</tspan>
             <tspan x={peakX + 10} dy={14} fill={GREY}>
-              one week later
+              {PEAK_NOTE}
             </tspan>
+          </text>
+          <text x={mayX} y={mayY - 12} textAnchor="middle" style={appear(4)}>
+            {mayLabel}
           </text>
         </g>
       </svg>
@@ -266,7 +285,7 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
       </div>
       <ul
         aria-hidden
-        className="sm:hidden mt-4 font-mono text-[11px] tabular-nums text-text-primary"
+        className="md:hidden mt-4 font-mono text-[11px] tabular-nums text-text-primary"
       >
         {legend.map((row) => (
           <li

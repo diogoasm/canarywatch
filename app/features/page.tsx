@@ -70,7 +70,7 @@ export default async function FeaturesPage() {
         <Reveal className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="flex flex-col gap-8 min-w-0">
             <div>
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight tracking-tight mb-5">
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-7xl font-bold text-text-primary leading-tight tracking-tight mb-5">
                 Know before
                 <br />
                 it moves.
@@ -160,7 +160,7 @@ export default async function FeaturesPage() {
                   delay={index * 0.06}
                   className="grid grid-cols-[2.5rem_minmax(0,1fr)] md:grid-cols-[4rem_minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-x-4 md:gap-x-6 gap-y-2 py-8 sm:py-10"
                 >
-                  <span className="font-mono text-sm tabular-nums text-canary">
+                  <span className="font-mono text-sm tabular-nums text-[#B8901A]">
                     {number}
                   </span>
                   <h3 className="font-display text-xl sm:text-2xl text-text-primary">
