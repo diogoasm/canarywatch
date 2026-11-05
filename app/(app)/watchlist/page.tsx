@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon from "@/components/CanaryIcon";
 import CountUp from "@/components/CountUp";
+import MarketMovers from "@/components/MarketMovers";
 import StockSearch from "@/components/StockSearch";
 import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
 import { calculatePnL, daysUntil } from "@/lib/utils";
@@ -792,6 +793,9 @@ export default function WatchlistPage() {
 
       {/* ── Latest news ── */}
       {items.length > 0 && <NewsSection news={news} />}
+
+      {/* ── Market movers ── */}
+      <MarketMovers className="mt-10" />
     </div>
   );
 }

@@ -1,147 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
-
-// ─── Hero mock watchlist ───────────────────────────────────────────────────
-// Live prices from /api/stock/quote (public, Finnhub-backed). Falls back to
-// static placeholder prices if the fetch fails.
-
-const MOCK_STOCKS = [
-  {
-    ticker: "SPY",
-    name: "S&P 500 ETF",
-    fallbackPrice: "594.20",
-    fallbackChange: 0.42,
-    status: "green" as const,
-  },
-  {
-    ticker: "GLD",
-    name: "Gold ETF",
-    fallbackPrice: "248.10",
-    fallbackChange: 0.18,
-    status: "grey" as const,
-  },
-  {
-    ticker: "NVDA",
-    name: "Nvidia Corp",
-    fallbackPrice: "878.35",
-    fallbackChange: 2.41,
-    status: "yellow" as const,
-  },
-];
-
-interface MockQuote {
-  price: string;
-  change: number;
-}
-
-function MockWatchlist() {
-  // undefined = still loading, null = fetch failed (use fallback)
-  const [quotes, setQuotes] = useState<
-    Record<string, MockQuote | null | undefined>
-  >({});
-
-  useEffect(() => {
-    let cancelled = false;
-    MOCK_STOCKS.forEach(async (stock) => {
-      try {
-        const res = await fetch(`/api/stock/quote?ticker=${stock.ticker}`);
-        const data = await res.json();
-        if (cancelled) return;
-        const ok = res.ok && typeof data.price === "number";
-        setQuotes((prev) => ({
-          ...prev,
-          [stock.ticker]: ok
-            ? {
-                price: data.price.toFixed(2),
-                change:
-                  typeof data.change_percent === "number"
-                    ? data.change_percent
-                    : 0,
-              }
-            : null,
-        }));
-      } catch {
-        if (!cancelled) {
-          setQuotes((prev) => ({ ...prev, [stock.ticker]: null }));
-        }
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <div className="card w-full max-w-xs mx-auto overflow-hidden">
-      <div className="px-3.5 py-2.5 border-b border-border flex items-center justify-between">
-        <span className="font-playfair text-sm font-semibold text-text-primary">
-          My Watchlist
-        </span>
-        <span className="font-body text-[11px] text-text-secondary">
-          3 stocks
-        </span>
-      </div>
-      <div className="divide-y divide-border">
-        {MOCK_STOCKS.map((stock) => {
-          const quote = quotes[stock.ticker];
-          const loading = quote === undefined;
-          const price = quote?.price ?? stock.fallbackPrice;
-          const change = quote?.change ?? stock.fallbackChange;
-          const positive = change >= 0;
-          return (
-            <div
-              key={stock.ticker}
-              className="px-3.5 py-2.5 flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2.5">
-                <CanaryIcon status={stock.status} size={15} />
-                <div>
-                  <p className="font-body text-xs font-semibold text-text-primary">
-                    {stock.ticker}
-                  </p>
-                  <p className="font-body text-[11px] text-text-secondary">
-                    {stock.name}
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                {loading ? (
-                  <>
-                    <p className="font-mono text-xs text-text-secondary/50">
-                      ···
-                    </p>
-                    <p className="font-mono text-[11px] text-text-secondary/50">
-                      ···
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-mono text-xs font-medium text-text-primary">
-                      ${price}
-                    </p>
-                    <p
-                      className={`font-mono text-[11px] font-medium ${
-                        positive ? "text-positive" : "text-urgent"
-                      }`}
-                    >
-                      {positive ? "+" : ""}
-                      {change.toFixed(2)}%
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+import MarketMovers from "@/components/MarketMovers";
 
 // ─── Feature cards ─────────────────────────────────────────────────────────
 
@@ -243,10 +106,10 @@ export default function FeaturesPage() {
 
           {/* Mock UI */}
           <div className="lg:flex lg:justify-end">
-            <div className="w-full max-w-xs mx-auto lg:mx-0">
-              <MockWatchlist />
+            <div className="w-full">
+              <MarketMovers />
               {/* Briefing preview card */}
-              <div className="card mt-3 p-3.5">
+              <div className="card mt-3 p-3.5 max-w-xs mx-auto lg:mr-0">
                 <div className="flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-full bg-[#FFF8E1] flex items-center justify-center shrink-0">
                     <CanaryLogoIcon size={15} />
