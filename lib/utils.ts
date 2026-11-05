@@ -80,6 +80,39 @@ export function resolveCanaryStatus(
   return "grey";
 }
 
+export function resolveCanaryTooltip(
+  pnlPercent: number,
+  earningsDate: string | null
+): string {
+  if (earningsDate) {
+    const days = daysUntil(earningsDate);
+    if (days >= 1 && days <= 7)
+      return `Earnings in ${days} day${days === 1 ? "" : "s"} — decide your strategy`;
+    if (days >= 8 && days <= 21)
+      return `Earnings in ${days} days — plan ahead`;
+  }
+  if (pnlPercent <= -10)
+    return `Down ${Math.abs(pnlPercent).toFixed(1)}% — significant loss`;
+  if (pnlPercent >= 10) return `Up ${pnlPercent.toFixed(1)}% — strong gain`;
+  return "No significant flags right now";
+}
+
+export function resolveHoldingCanary(
+  holding: { shares: number; avg_buy_price: number },
+  quote?: { price?: number; next_earnings_date?: string | null } | null
+): { status: CanaryStatus; tooltip: string } {
+  const price = quote?.price;
+  if (price == null || isNaN(price)) {
+    return { status: "grey", tooltip: "Fetching data…" };
+  }
+  const { percent } = calculatePnL(holding.shares, holding.avg_buy_price, price);
+  const earningsDate = quote?.next_earnings_date ?? null;
+  return {
+    status: resolveCanaryStatus(percent, earningsDate),
+    tooltip: resolveCanaryTooltip(percent, earningsDate),
+  };
+}
+
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(" ");
 }

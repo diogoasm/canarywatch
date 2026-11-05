@@ -10,8 +10,10 @@ import {
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
+import CanaryStrip from "@/components/CanaryStrip";
+import { fetchQuote } from "@/lib/quotes";
 import type { CanaryStatus, Profile, WatchlistItem } from "@/types";
-import { calculatePnL, daysUntil, resolveCanaryStatus } from "@/lib/utils";
+import { daysUntil, resolveHoldingCanary } from "@/lib/utils";
 
 // ─── Local types ───────────────────────────────────────────────────────────
 
@@ -272,28 +274,6 @@ function BriefingSection({
       {label && <SectionLabel>{label}</SectionLabel>}
       {children}
     </motion.section>
-  );
-}
-
-function CanaryStrip({
-  holdings,
-}: {
-  holdings: { id: string; ticker: string; status: CanaryStatus }[];
-}) {
-  return (
-    <ul className="flex flex-wrap gap-x-5 gap-y-6">
-      {holdings.map((holding) => (
-        <li
-          key={holding.id}
-          className="flex flex-col items-center gap-2 min-w-[3rem]"
-        >
-          <CanaryIcon status={holding.status} size={28} />
-          <span className="font-mono text-[11px] text-text-primary">
-            {holding.ticker}
-          </span>
-        </li>
-      ))}
-    </ul>
   );
 }
 
@@ -693,8 +673,7 @@ export default function AdvisorPage() {
     Promise.all(
       holdings.map(async ({ ticker }) => {
         try {
-          const res = await fetch(`/api/stock/quote?ticker=${ticker}`);
-          return [ticker, (await res.json()) as QuoteData] as const;
+          return [ticker, await fetchQuote<QuoteData>(ticker)] as const;
         } catch {
           return [ticker, {} as QuoteData] as const;
         }
@@ -739,18 +718,11 @@ export default function AdvisorPage() {
     profile !== null &&
     (profile.plan === "premium" || creditsRemaining(profile)! > 0);
 
-  const canaries = holdings.map((item) => {
-    const quote = quotes[item.ticker];
-    const price = quote?.price;
-    const status: CanaryStatus =
-      price != null && !isNaN(price)
-        ? resolveCanaryStatus(
-            calculatePnL(item.shares, item.avg_buy_price, price).percent,
-            quote.next_earnings_date ?? null
-          )
-        : "grey";
-    return { id: item.id, ticker: item.ticker, status };
-  });
+  const canaries = holdings.map((item) => ({
+    id: item.id,
+    ticker: item.ticker,
+    status: resolveHoldingCanary(item, quotes[item.ticker]).status,
+  }));
 
   const upcoming = (briefing?.content.key_dates ?? [])
     .map((d) => {

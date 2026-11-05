@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import CanaryIcon from "@/components/CanaryIcon";
+import { WATCHLIST_CHANGED } from "@/components/CanaryFavicon";
+import CanaryStrip, { CanaryWithTooltip } from "@/components/CanaryStrip";
 import CountUp from "@/components/CountUp";
 import MarketMovers from "@/components/MarketMovers";
 import StockSearch from "@/components/StockSearch";
-import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
-import { calculatePnL, daysUntil, resolveCanaryStatus } from "@/lib/utils";
+import { fetchQuote } from "@/lib/quotes";
+import type { StockSearchResult, WatchlistItem } from "@/types";
+import { calculatePnL, resolveHoldingCanary } from "@/lib/utils";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -33,47 +35,6 @@ type NewsState =
   | { status: "loading" }
   | { status: "error" }
   | { status: "loaded"; articles: NewsArticle[] };
-
-// ─── Canary flag logic ─────────────────────────────────────────────────────
-
-function resolveCanaryTooltip(
-  pnlPercent: number,
-  earningsDate: string | null
-): string {
-  if (earningsDate) {
-    const days = daysUntil(earningsDate);
-    if (days >= 1 && days <= 7)
-      return `Earnings in ${days} day${days === 1 ? "" : "s"} — decide your strategy`;
-    if (days >= 8 && days <= 21)
-      return `Earnings in ${days} days — plan ahead`;
-  }
-  if (pnlPercent <= -10)
-    return `Down ${Math.abs(pnlPercent).toFixed(1)}% — significant loss`;
-  if (pnlPercent >= 10) return `Up ${pnlPercent.toFixed(1)}% — strong gain`;
-  return "No significant flags right now";
-}
-
-// ─── Canary icon with tooltip ──────────────────────────────────────────────
-
-function CanaryWithTooltip({
-  status,
-  tooltip,
-}: {
-  status: CanaryStatus;
-  tooltip: string;
-}) {
-  return (
-    <div className="relative group inline-flex items-center">
-      <CanaryIcon status={status} size={20} />
-      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-20 pointer-events-none">
-        <div className="hidden group-hover:block bg-[#1A1A1A] text-white font-body text-xs rounded-md px-3 py-1.5 whitespace-nowrap shadow-xl">
-          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#1A1A1A]" />
-          {tooltip}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Loading skeleton row ──────────────────────────────────────────────────
 
@@ -281,18 +242,16 @@ function WatchlistRow({
     !isLoading && quote != null ? quote.change_percent : undefined;
   const changePercent: number | null =
     rawChange != null && !isNaN(rawChange) ? rawChange : null;
-  const earningsDate: string | null =
-    !isLoading && quote != null ? (quote.next_earnings_date ?? null) : null;
 
   const pnl =
     price !== null
       ? calculatePnL(item.shares, item.avg_buy_price, price)
       : null;
 
-  const status: CanaryStatus =
-    pnl ? resolveCanaryStatus(pnl.percent, earningsDate) : "grey";
-  const tooltip =
-    pnl ? resolveCanaryTooltip(pnl.percent, earningsDate) : "Fetching data…";
+  const { status, tooltip } = resolveHoldingCanary(
+    item,
+    isLoading ? null : quote
+  );
 
   // Trigger a brief colour flash on the first successful price load.
   const wasLoadingRef = useRef(isLoading);
@@ -612,8 +571,7 @@ export default function WatchlistPage() {
       const fetched = await Promise.all(
         loaded.map(async (item) => {
           try {
-            const res = await fetch(`/api/stock/quote?ticker=${item.ticker}`);
-            const data: QuoteData = await res.json();
+            const data = await fetchQuote<QuoteData>(item.ticker);
             return { ticker: item.ticker, data };
           } catch {
             return {
@@ -662,12 +620,14 @@ export default function WatchlistPage() {
 
     setSelectedStock(null);
     await fetchWatchlist();
+    window.dispatchEvent(new Event(WATCHLIST_CHANGED));
   }
 
   async function handleDelete(id: string) {
     const supabase = createClient();
     await supabase.from("watchlist").delete().eq("id", id);
     setItems((prev) => prev.filter((i) => i.id !== id));
+    window.dispatchEvent(new Event(WATCHLIST_CHANGED));
   }
 
   // Portfolio totals from live quote data
@@ -688,17 +648,31 @@ export default function WatchlistPage() {
   const hasLiveData =
     Object.values(quotes).some((q) => q !== "loading" && !("error" in q));
 
+  const canaries = items.map((item) => {
+    const quote = quotes[item.ticker];
+    return {
+      id: item.id,
+      ticker: item.ticker,
+      ...resolveHoldingCanary(item, quote === "loading" ? null : quote),
+    };
+  });
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-8">
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="font-display text-3xl font-bold text-text-primary">
             My Watchlist
           </h1>
           <p className="font-body text-sm text-text-secondary mt-1">
             Your portfolio, watched.
           </p>
+          {items.length > 0 && (
+            <div className="mt-5">
+              <CanaryStrip holdings={canaries} />
+            </div>
+          )}
         </div>
 
         {hasLiveData && items.length > 0 && (
