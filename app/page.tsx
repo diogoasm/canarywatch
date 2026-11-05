@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { CanaryLogoIcon } from "@/components/CanaryIcon";
+import CanaryIcon from "@/components/CanaryIcon";
 import FlyingCanaryIntro from "@/components/FlyingCanaryIntro";
+import IntelChart, { type DailyClose } from "@/components/IntelChart";
+import MarketMovers from "@/components/MarketMovers";
+import Reveal from "@/components/Reveal";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "Canary — Know before it moves",
@@ -18,25 +22,62 @@ export const metadata: Metadata = {
   },
 };
 
-const STEPS = [
+const INTC_HISTORY_URL =
+  "https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=INTC&from=2026-01-01&to=2026-05-31";
+
+const CAPABILITIES = [
   {
     number: "01",
-    title: "Add your positions",
-    body: "Tell Canary what you hold and what you paid. That's all it needs to start watching for you.",
+    title: "Canary warnings",
+    body: "Every stock you hold gets a canary. Red means act soon, yellow means watch, green means good news. Checked every time you open the app.",
   },
   {
     number: "02",
-    title: "Your canary watches",
-    body: "Every time you open Canary, it checks earnings dates, sector movements and key events for every stock you hold. The colour of your canary tells you what needs attention — before it becomes a problem.",
+    title: "Briefings on your numbers",
+    body: "A short memo built from what you actually paid and how much you hold. Not generic market commentary.",
   },
   {
     number: "03",
-    title: "You make the decision",
-    body: "Canary never tells you to buy or sell. It gives you the information, the context, and the tools. The judgment is always yours. That's the point.",
+    title: "Tools to decide yourself",
+    body: "DCF and DDM valuation, a research guide, and a pre-trade checklist. Canary never tells you to buy or sell.",
   },
 ];
 
-export default function Home() {
+// Returns null on failure: the story still reads without the chart.
+async function getIntelCloses(): Promise<DailyClose[] | null> {
+  const apiKey = process.env.FMP_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(`${INTC_HISTORY_URL}&apikey=${apiKey}`, {
+      next: { revalidate: 86400 }, // history never changes
+    });
+    if (!res.ok) return null;
+
+    const data: unknown = await res.json();
+    if (!Array.isArray(data)) return null;
+
+    // The light endpoint calls the close `price` and lists newest first.
+    return (data as { date: string; price: number }[])
+      .map(({ date, price }) => ({ date, close: price }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  } catch {
+    return null;
+  }
+}
+
+// Numbers and dates stay in DM Mono, even inside body copy.
+function Figure({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="font-mono text-[0.92em] tabular-nums whitespace-nowrap">
+      {children}
+    </span>
+  );
+}
+
+export default async function Home() {
+  const closes = await getIntelCloses();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Flying canary intro — a fixed overlay above the page; the layout below
@@ -45,100 +86,138 @@ export default function Home() {
 
       <Navbar />
 
-      {/* ── Section 1: Hero ── */}
-      <header className="max-w-3xl mx-auto px-4 sm:px-6 pt-28 pb-24 text-center">
-        <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-6">
-          How it works
-        </p>
-        <h1 className="font-playfair text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight mb-6">
-          Built around one idea.
-        </h1>
-        <p className="font-body text-lg text-text-secondary leading-relaxed max-w-xl mx-auto">
-          Most investors don&apos;t lose because they lack information. They
-          lose because they forget to pay attention at the right moment.
-        </p>
-      </header>
-
-      {/* ── Section 2: The problem ── */}
-      <section className="py-20 sm:py-24 border-t border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-          <p className="font-playfair italic text-2xl sm:text-3xl text-text-primary leading-snug">
-            &ldquo;You did your research. You bought the stock. Then life
-            happened.&rdquo;
-          </p>
-          <div className="font-body text-base text-text-secondary leading-relaxed flex flex-col gap-4">
-            <p>
-              Earnings sneak up. Sector news breaks overnight. A position you
-              forgot about moves 20% while you weren&apos;t watching. Not
-              because you made a bad decision — because you stopped paying
-              attention.
-            </p>
-            <p>
-              Canary exists to solve exactly this. Not to tell you what to do.
-              To make sure you never get blindsided again.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Section 3: How Canary works ── */}
-      <section className="py-20 sm:py-24 border-t border-border">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col gap-16">
-          {STEPS.map((step) => (
-            <div key={step.number} className="flex flex-col gap-3">
-              <span className="font-mono text-4xl sm:text-5xl text-canary">
-                {step.number}
-              </span>
-              <h2 className="font-playfair text-2xl sm:text-3xl font-bold text-text-primary">
-                {step.title}
-              </h2>
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
+        <Reveal className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="flex flex-col gap-8 min-w-0">
+            <div>
+              <h1 className="font-display text-4xl sm:text-5xl lg:text-7xl font-bold text-text-primary leading-tight tracking-tight mb-5">
+                Know before
+                <br />
+                it moves.
+              </h1>
               <p className="font-body text-base text-text-secondary leading-relaxed">
-                {step.body}
+                Canary warns you before earnings, crashes and key events.
               </p>
             </div>
-          ))}
-        </div>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Link
+                href="/signup"
+                className="btn-primary font-playfair text-sm px-6 py-2.5"
+              >
+                Get started free
+              </Link>
+              <Link
+                href="/how-it-works"
+                className="btn-outline font-playfair text-sm px-6 py-2.5"
+              >
+                See how it works
+              </Link>
+            </div>
+          </div>
+
+          <div className="min-w-0">
+            <MarketMovers />
+          </div>
+        </Reveal>
       </section>
 
-      {/* ── Section 4: The philosophy ── */}
-      <section className="bg-[#1A1A1A] py-24 sm:py-32">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-white mb-8">
-            Intelligence without noise.
+      {/* ── Why this exists ──────────────────────────────────────────────── */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+          <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-5">
+            Why this exists
+          </p>
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary leading-tight tracking-tight text-balance">
+            I sold Intel two days before earnings.
           </h2>
-          <div className="font-body text-base text-white/70 leading-relaxed flex flex-col gap-4 mb-10">
+
+          {closes && <IntelChart closes={closes} />}
+
+          <div className="mt-12 max-w-[60ch] font-body text-base sm:text-lg text-text-primary leading-relaxed space-y-5">
             <p>
-              Most financial tools try to do too much. They overwhelm you with
-              data, push you toward decisions, and make money when you trade
-              more.
+              I bought Intel in January and sold it on{" "}
+              <Figure>21 April</Figure>, up <Figure>50%</Figure>. I was happy
+              with that.
             </p>
             <p>
-              Canary is different. It&apos;s a watching tool, not a trading
-              tool. It respects that you already know how to research — it just
-              makes sure you never forget to.
+              Two days later Intel reported earnings. The next day the stock
+              rose about <Figure>24%</Figure>, its biggest one-day gain since{" "}
+              <Figure>1987</Figure>. I hadn&apos;t looked at the date. A tool
+              that knew what I held would have told me. So I built one.
             </p>
           </div>
-          <div className="flex justify-center">
-            <CanaryLogoIcon size={32} />
+
+          <p className="mt-6 font-mono text-xs text-text-secondary">
+            — Diogo, founder
+          </p>
+
+          <div className="mt-10 flex items-center gap-3 border-l-2 border-canary pl-4 py-1">
+            <CanaryIcon status="red" size={16} className="shrink-0" />
+            <p className="font-body text-sm text-text-primary">
+              <span className="block sm:inline">
+                Canary would have flagged it:{" "}
+              </span>
+              <span className="font-mono tabular-nums">
+                INTC · earnings in 2 days
+              </span>
+            </p>
           </div>
         </div>
       </section>
 
-      {/* ── Section 5: CTA ── */}
-      <section className="py-24 sm:py-28 text-center px-4 sm:px-6">
-        <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-text-primary mb-8">
-          Ready to start watching?
-        </h2>
-        <Link
-          href="/signup"
-          className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-7 py-3 rounded-lg hover:bg-canary-dark transition-colors"
-        >
-          Create your free account
-        </Link>
-        <p className="font-body text-sm text-text-secondary mt-5">
-          Free forever. No credit card required.
-        </p>
+      {/* ── What Canary does ─────────────────────────────────────────────── */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
+          <h2 className="font-mono text-xs font-normal uppercase tracking-widest text-text-secondary mb-8">
+            What Canary does
+          </h2>
+
+          <ol className="border-t border-border">
+            {CAPABILITIES.map(({ number, title, body }, index) => (
+              <li key={number} className="border-b border-border">
+                <Reveal
+                  delay={index * 0.06}
+                  className="grid grid-cols-[2.5rem_minmax(0,1fr)] md:grid-cols-[4rem_minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-x-4 md:gap-x-6 gap-y-2 py-8 sm:py-10"
+                >
+                  <span className="font-mono text-sm tabular-nums text-[#B8901A]">
+                    {number}
+                  </span>
+                  <h3 className="font-display text-xl sm:text-2xl text-text-primary">
+                    {title}
+                  </h3>
+                  <p className="col-start-2 md:col-start-3 font-body text-sm sm:text-base text-text-secondary leading-relaxed">
+                    {body}
+                  </p>
+                </Reveal>
+              </li>
+            ))}
+          </ol>
+        </div>
       </section>
+
+      {/* ── Close ────────────────────────────────────────────────────────── */}
+      <section className="bg-[#1A1A1A]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 flex flex-col items-start gap-8">
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight text-balance">
+            Don&apos;t find out the day after.
+          </h2>
+          <div className="flex flex-col items-start gap-4">
+            <Link
+              href="/signup"
+              className="btn-primary font-playfair text-sm px-6 py-2.5"
+            >
+              Start watching for free
+            </Link>
+            <p className="font-mono text-xs text-[#B0B0B0]">
+              Free. No card needed.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <SiteFooter />
     </div>
   );
 }
