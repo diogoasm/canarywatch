@@ -87,8 +87,10 @@ export default async function Home() {
       <Navbar />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      {/* Deliberately not animated. Anything that fades in ships hidden in the
+          HTML, so the first thing people see would be waiting on JavaScript. */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
-        <Reveal className="grid lg:grid-cols-2 gap-16 items-center">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="flex flex-col gap-8 min-w-0">
             <div>
               <h1 className="font-display text-4xl sm:text-5xl lg:text-7xl font-bold text-text-primary leading-tight tracking-tight mb-5">
@@ -120,7 +122,7 @@ export default async function Home() {
           <div className="min-w-0">
             <MarketMovers />
           </div>
-        </Reveal>
+        </div>
       </section>
 
       {/* ── Why this exists ──────────────────────────────────────────────── */}

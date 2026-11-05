@@ -33,8 +33,9 @@ For each stock:
 Be direct and specific. Use real numbers. Never be vague. Max 2-3 sentences per section but make every sentence count.
 
 Be extremely concise. Every bullet point maximum 1-2 sentences. No repetition across sections.
-If a point was made in Canary Warnings, do not repeat it in Outlook.
 Total briefing should feel like a sharp, focused memo — not a report.
+
+Return at most 3 warnings, ordered by urgency. Never repeat a point in two warnings. Each warning is one sentence, maximum 25 words. If a point appears in warnings, do not repeat it in outlook.
 
 Return your response as a valid JSON object only — no markdown, no explanation, just the raw JSON with these keys: canary_warnings, market_context, outlook, disclaimer`;
 

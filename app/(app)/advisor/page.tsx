@@ -1,7 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { motion, useInView, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import type { CanaryStatus, Profile, WatchlistItem } from "@/types";
@@ -235,24 +241,32 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function BriefingSection({
-  index,
   label,
   children,
 }: {
-  index: number;
   label?: string;
   children: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
+  const ref = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { once: true });
+  const [belowFold, setBelowFold] = useState(false);
+
+  // Sections start visible, and only ones that begin off screen are hidden, so
+  // nothing on the first screen ever waits on an animation.
+  useLayoutEffect(() => {
+    const top = ref.current?.getBoundingClientRect().top ?? 0;
+    setBelowFold(!reduce && top >= window.innerHeight);
+  }, [reduce]);
+
+  const hidden = belowFold && !inView;
+
   return (
     <motion.section
-      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{
-        duration: reduce ? 0 : 0.4,
-        ease: "easeOut",
-        delay: reduce ? 0 : index * 0.08,
-      }}
+      ref={ref}
+      initial={false}
+      animate={hidden ? { opacity: 0, y: 12 } : { opacity: 1, y: 0 }}
+      transition={{ duration: hidden ? 0 : 0.4, ease: "easeOut" }}
       className="border-t border-border py-10 sm:py-12"
     >
       {label && <SectionLabel>{label}</SectionLabel>}
@@ -506,24 +520,24 @@ function BriefingDisplay({
       )}
 
       {holdings.length > 0 && (
-        <BriefingSection index={0} label="Your portfolio">
+        <BriefingSection label="Your portfolio">
           <CanaryStrip holdings={holdings} />
         </BriefingSection>
       )}
 
-      <BriefingSection index={1} label="Snapshot">
+      <BriefingSection label="Snapshot">
         <Snapshot snapshot={c.portfolio_snapshot} />
       </BriefingSection>
 
-      <BriefingSection index={2} label="Coming up">
+      <BriefingSection label="Coming up">
         <ComingUp dates={upcoming} />
       </BriefingSection>
 
-      <BriefingSection index={3} label="Warnings">
+      <BriefingSection label="Warnings">
         <Warnings warnings={c.canary_warnings} />
       </BriefingSection>
 
-      <BriefingSection index={4}>
+      <BriefingSection>
         <div className="grid lg:grid-cols-2 gap-x-12 gap-y-10">
           <div className="min-w-0">
             <SectionLabel>Market context</SectionLabel>
@@ -538,7 +552,7 @@ function BriefingDisplay({
         </div>
       </BriefingSection>
 
-      <BriefingSection index={5}>
+      <BriefingSection>
         <p className="font-body text-xs text-text-secondary leading-relaxed">
           {c.disclaimer ||
             "This briefing is AI-generated for informational purposes only. Not financial advice. Always do your own research before making investment decisions."}
