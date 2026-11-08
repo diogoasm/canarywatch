@@ -421,7 +421,7 @@ function NewsRow({ article }: { article: NewsArticle }) {
         title={article.headline}
         className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 -mx-2 px-2 py-2.5 transition-colors duration-150 hover:bg-[#F0EDE6] focus-visible:bg-[#F0EDE6]"
       >
-        <span className="font-mono text-[11px] font-medium text-canary">
+        <span className="font-mono text-[11px] font-medium text-[#B8901A]">
           {article.ticker}
         </span>
         <span className="col-span-2 sm:col-span-1 order-last sm:order-none font-body text-sm text-text-primary line-clamp-2 sm:line-clamp-1">

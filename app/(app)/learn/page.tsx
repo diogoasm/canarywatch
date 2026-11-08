@@ -48,11 +48,13 @@ function TipBox({ children }: { children: React.ReactNode }) {
 function EpsBeatVisual() {
   const barW = 90;
   return (
-    <div className="bg-background rounded-lg p-5 mt-5">
+    <div className="mt-8">
       <p className="font-body text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">
         EPS Actual vs EPS Estimate
       </p>
-      <svg viewBox="0 0 340 120" className="w-full max-w-sm h-auto" role="img" aria-label="Example of an EPS beat: actual earnings per share above the analyst estimate">
+      {/* The viewBox starts at the first bar (x=30) so the chart sits on the
+          text edge; max-w-[340px] keeps the old drawing scale. */}
+      <svg viewBox="30 0 300 120" className="w-full max-w-[340px] h-auto" role="img" aria-label="Example of an EPS beat: actual earnings per share above the analyst estimate">
         {/* Estimate bar */}
         <rect x="30" y="45" width={barW} height="55" rx="4" fill="#C4C0B8" />
         <text x={30 + barW / 2} y="115" textAnchor="middle" fontSize="11" fill="#6B6B6B" fontFamily="var(--font-dm-sans), sans-serif">

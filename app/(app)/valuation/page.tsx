@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import StockSearch from "@/components/StockSearch";
 import { createClient } from "@/lib/supabase/client";
 import type { StockSearchResult } from "@/types";
@@ -437,9 +437,11 @@ type Holding = Pick<StockSearchResult, "ticker" | "company_name">;
 
 function QuickPicks({
   holdings,
+  selectedTicker,
   onPick,
 }: {
   holdings: Holding[] | null;
+  selectedTicker: string | null;
   onPick: (stock: StockSearchResult) => void;
 }) {
   // Holds the line's space while the watchlist loads, so nothing jumps when
@@ -453,6 +455,7 @@ function QuickPicks({
   }
 
   if (holdings.length === 0) {
+    if (selectedTicker) return null;
     return (
       <p className="font-body text-sm text-text-secondary mt-3">
         Search any stock to see its DCF and DDM valuation.
@@ -463,19 +466,27 @@ function QuickPicks({
   return (
     <p className="font-body text-sm text-text-secondary mt-3">
       Your holdings:{" "}
-      {holdings.map((h, i) => (
-        <Fragment key={h.ticker}>
-          {i > 0 && " · "}
-          <button
-            type="button"
-            title={h.company_name}
-            onClick={() => onPick({ ...h, exchange: "" })}
-            className="font-mono text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
-          >
-            {h.ticker}
-          </button>
-        </Fragment>
-      ))}
+      {holdings.map((h, i) => {
+        const active = h.ticker === selectedTicker;
+        return (
+          <Fragment key={h.ticker}>
+            {i > 0 && " · "}
+            <button
+              type="button"
+              title={h.company_name}
+              aria-pressed={active}
+              onClick={() => onPick({ ...h, exchange: "" })}
+              className={`font-mono underline underline-offset-4 transition-colors ${
+                active
+                  ? "text-[#1A1A1A] decoration-canary decoration-2"
+                  : "text-text-secondary decoration-text-secondary/40 hover:text-[#1A1A1A]"
+              }`}
+            >
+              {h.ticker}
+            </button>
+          </Fragment>
+        );
+      })}
     </p>
   );
 }
@@ -515,7 +526,12 @@ export default function ValuationPage() {
     };
   }, []);
 
+  // The quick picks stay on screen, so a second pick can land before the
+  // first answer. Only the latest request may write to the page.
+  const latestRequest = useRef(0);
+
   async function handleSelect(result: StockSearchResult) {
+    const run = ++latestRequest.current;
     setSelected(result);
     setData(null);
     setError(null);
@@ -525,15 +541,17 @@ export default function ValuationPage() {
         `/api/valuation?ticker=${encodeURIComponent(result.ticker)}`
       );
       const json = await res.json();
+      if (run !== latestRequest.current) return;
       if (!res.ok) {
         setError(json.error ?? "Failed to load valuation data.");
       } else {
         setData(json as ValuationData);
       }
     } catch {
+      if (run !== latestRequest.current) return;
       setError("Network error. Please try again.");
     } finally {
-      setLoading(false);
+      if (run === latestRequest.current) setLoading(false);
     }
   }
 
@@ -552,6 +570,11 @@ export default function ValuationPage() {
       {/* ── Search ── */}
       <div className="mb-8">
         <StockSearch onSelect={handleSelect} />
+        <QuickPicks
+          holdings={holdings}
+          selectedTicker={selected?.ticker ?? null}
+          onPick={handleSelect}
+        />
         {selected && !loading && (
           <p className="font-body text-xs text-text-secondary mt-2">
             Showing valuation for{" "}
@@ -561,7 +584,6 @@ export default function ValuationPage() {
             — {selected.company_name}
           </p>
         )}
-        {!selected && <QuickPicks holdings={holdings} onPick={handleSelect} />}
       </div>
 
       {/* ── Content ── */}
