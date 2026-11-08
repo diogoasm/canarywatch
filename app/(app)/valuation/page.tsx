@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import StockSearch from "@/components/StockSearch";
+import { createClient } from "@/lib/supabase/client";
 import type { StockSearchResult } from "@/types";
 
 // ─── Types (mirrors /api/valuation response) ───────────────────────────────
@@ -430,6 +431,55 @@ function ValuationSkeleton() {
   );
 }
 
+// ─── Quick picks from the watchlist ────────────────────────────────────────
+
+type Holding = Pick<StockSearchResult, "ticker" | "company_name">;
+
+function QuickPicks({
+  holdings,
+  onPick,
+}: {
+  holdings: Holding[] | null;
+  onPick: (stock: StockSearchResult) => void;
+}) {
+  // Holds the line's space while the watchlist loads, so nothing jumps when
+  // it arrives.
+  if (holdings === null) {
+    return (
+      <p aria-hidden className="font-body text-sm mt-3 invisible">
+        &nbsp;
+      </p>
+    );
+  }
+
+  if (holdings.length === 0) {
+    return (
+      <p className="font-body text-sm text-text-secondary mt-3">
+        Search any stock to see its DCF and DDM valuation.
+      </p>
+    );
+  }
+
+  return (
+    <p className="font-body text-sm text-text-secondary mt-3">
+      Your holdings:{" "}
+      {holdings.map((h, i) => (
+        <Fragment key={h.ticker}>
+          {i > 0 && " · "}
+          <button
+            type="button"
+            title={h.company_name}
+            onClick={() => onPick({ ...h, exchange: "" })}
+            className="font-mono text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
+          >
+            {h.ticker}
+          </button>
+        </Fragment>
+      ))}
+    </p>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────
 
 export default function ValuationPage() {
@@ -437,6 +487,33 @@ export default function ValuationPage() {
   const [data, setData] = useState<ValuationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // null while loading; a failed fetch counts as an empty watchlist.
+  const [holdings, setHoldings] = useState<Holding[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      let rows: Holding[] = [];
+      try {
+        const { data } = await createClient()
+          .from("watchlist")
+          .select("ticker, company_name")
+          .order("added_at", { ascending: true });
+        rows = (data ?? []) as Holding[];
+      } catch {
+        // Fall through with no holdings.
+      }
+      // Two lots of the same stock are two rows but one link.
+      const unique = rows.filter(
+        (h, i) => rows.findIndex((r) => r.ticker === h.ticker) === i
+      );
+      if (!cancelled) setHoldings(unique);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSelect(result: StockSearchResult) {
     setSelected(result);
@@ -484,6 +561,7 @@ export default function ValuationPage() {
             — {selected.company_name}
           </p>
         )}
+        {!selected && <QuickPicks holdings={holdings} onPick={handleSelect} />}
       </div>
 
       {/* ── Content ── */}
@@ -513,13 +591,7 @@ export default function ValuationPage() {
             </p>
           </div>
         )
-      ) : (
-        <div className="card p-10 text-center">
-          <p className="font-body text-sm text-text-secondary">
-            Search for any stock above to see its DCF and DDM valuation.
-          </p>
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

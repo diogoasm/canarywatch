@@ -189,7 +189,7 @@ function AddStockForm({
 
         <div className="flex flex-col gap-1.5 flex-1">
           <label className="font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-            Average buy price (€)
+            Average buy price ($)
           </label>
           <input
             type="number"
@@ -404,35 +404,66 @@ function formatNewsDate(unixSeconds: number): string {
   });
 }
 
-function NewsCard({ article }: { article: NewsArticle }) {
+const NEWS_VISIBLE = 8;
+
+// One line from sm up: ticker, headline, source and date. On a phone the
+// headline drops below the ticker and date, and gets two lines there since
+// one line would cut it after a few words.
+function NewsRow({ article }: { article: NewsArticle }) {
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="card card-hover p-4 flex flex-col gap-2.5 no-underline"
-    >
-      <span className="self-start font-mono text-[11px] font-medium bg-canary text-[#1A1A1A] px-2 py-0.5 rounded">
-        {article.ticker}
-      </span>
-      <p className="font-body text-sm font-medium text-text-primary leading-snug line-clamp-2">
-        {article.headline}
-      </p>
-      <p className="font-mono text-[11px] text-text-secondary">
-        {article.source} · {formatNewsDate(article.datetime)}
-      </p>
-    </a>
+    <li className="border-b border-border">
+      {/* -mx-2 lets the hover fill reach past the text without moving it
+          out of line with the rules. */}
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={article.headline}
+        className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 -mx-2 px-2 py-2.5 transition-colors duration-150 hover:bg-[#F0EDE6] focus-visible:bg-[#F0EDE6]"
+      >
+        <span className="font-mono text-[11px] font-medium text-canary">
+          {article.ticker}
+        </span>
+        <span className="col-span-2 sm:col-span-1 order-last sm:order-none font-body text-sm text-text-primary line-clamp-2 sm:line-clamp-1">
+          {article.headline}
+        </span>
+        <span className="font-mono text-[11px] text-text-secondary text-right whitespace-nowrap">
+          <span className="hidden sm:inline">{article.source} · </span>
+          {formatNewsDate(article.datetime)}
+        </span>
+      </a>
+    </li>
   );
 }
 
-function NewsSkeletonCard() {
+function NewsList({ articles }: { articles: NewsArticle[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const listRef = useRef<HTMLUListElement>(null);
+  const shown = expanded ? articles : articles.slice(0, NEWS_VISIBLE);
+
+  // The button disappears once pressed, so keyboard focus moves to the first
+  // headline it revealed instead of falling back to the top of the page.
+  useEffect(() => {
+    if (expanded) listRef.current?.querySelectorAll("a")[NEWS_VISIBLE]?.focus();
+  }, [expanded]);
+
   return (
-    <div className="card p-4 animate-pulse">
-      <div className="h-4 bg-border rounded w-12 mb-3" />
-      <div className="h-3.5 bg-border rounded w-full mb-1.5" />
-      <div className="h-3.5 bg-border rounded w-3/4 mb-3" />
-      <div className="h-3 bg-border rounded w-32" />
-    </div>
+    <>
+      <ul ref={listRef} className="border-t border-border">
+        {shown.map((article) => (
+          <NewsRow key={`${article.ticker}-${article.url}`} article={article} />
+        ))}
+      </ul>
+      {shown.length < articles.length && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="mt-3 font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
+        >
+          Show more
+        </button>
+      )}
+    </>
   );
 }
 
@@ -445,9 +476,11 @@ function NewsSection({ news }: { news: NewsState }) {
         Latest News
       </p>
       {news.status === "loading" ? (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div aria-hidden className="border-t border-border">
           {[1, 2, 3, 4].map((i) => (
-            <NewsSkeletonCard key={i} />
+            <div key={i} className="h-10 flex items-center border-b border-border">
+              <div className="h-1 w-full bg-border animate-pulse" />
+            </div>
           ))}
         </div>
       ) : news.articles.length === 0 ? (
@@ -455,11 +488,7 @@ function NewsSection({ news }: { news: NewsState }) {
           No recent news for your holdings.
         </p>
       ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {news.articles.map((article) => (
-            <NewsCard key={`${article.ticker}-${article.url}`} article={article} />
-          ))}
-        </div>
+        <NewsList articles={news.articles} />
       )}
     </div>
   );
