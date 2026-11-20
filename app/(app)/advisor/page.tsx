@@ -117,8 +117,8 @@ function fmtCountdown(days: number): string {
 }
 
 function toneClass(value: number): string {
-  if (value > 0) return "text-positive";
-  if (value < 0) return "text-urgent";
+  if (value > 0) return "text-positive-ink";
+  if (value < 0) return "text-urgent-ink";
   return "text-text-primary";
 }
 
@@ -170,7 +170,7 @@ function GeneratePrompt({
       <button
         onClick={onGenerate}
         disabled={!canGenerate}
-        className="bg-canary text-[#1A1A1A] font-playfair text-sm font-bold py-3 px-6 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="tap bg-canary text-[#1A1A1A] font-playfair text-sm font-bold py-3 px-6 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Generate My Briefing
       </button>
@@ -182,9 +182,9 @@ function GeneratePrompt({
       )}
 
       {!canGenerate && (
-        <p className="font-body text-xs text-urgent mt-4">
+        <p className="font-body text-xs text-urgent-ink mt-4">
           No briefings remaining.{" "}
-          <a href="/settings" className="underline">
+          <a href="/pricing" className="tap underline">
             Upgrade to Premium
           </a>{" "}
           for unlimited access.
@@ -360,7 +360,7 @@ function ComingUp({ dates }: { dates: KeyDate[] }) {
           <li
             key={d.ticker}
             className={`grid grid-cols-[3.5rem_3.5rem_minmax(0,1fr)_auto] items-baseline gap-x-3 py-3 ${
-              days <= 7 ? "text-urgent" : "text-text-primary"
+              days <= 7 ? "text-urgent-ink" : "text-text-primary"
             }`}
           >
             <span className="font-mono text-sm tabular-nums">
@@ -484,14 +484,14 @@ function BriefingDisplay({
           {canRegenerate ? (
             <button
               onClick={onRegenerate}
-              className="shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
+              className="tap shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
             >
               Regenerate now
             </button>
           ) : (
             <a
               href="/pricing"
-              className="shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
+              className="tap shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
             >
               Upgrade to Premium to regenerate
             </a>
@@ -766,7 +766,7 @@ export default function AdvisorPage() {
                 {canRegenerate && (
                   <button
                     onClick={handleGenerate}
-                    className="font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
+                    className="tap font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
                   >
                     Regenerate
                   </button>
@@ -781,8 +781,8 @@ export default function AdvisorPage() {
                 </p>
               ) : (
                 <a
-                  href="/settings"
-                  className="font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
+                  href="/pricing"
+                  className="tap font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
                 >
                   Upgrade to Premium
                 </a>
@@ -793,7 +793,7 @@ export default function AdvisorPage() {
 
       {/* ── Error ── */}
       {error && (
-        <p className="border-t border-border py-4 font-body text-sm text-urgent">
+        <p className="border-t border-border py-4 font-body text-sm text-urgent-ink">
           {error}
         </p>
       )}
@@ -823,7 +823,7 @@ export default function AdvisorPage() {
       ) : (
         <p className="border-t border-border py-10 font-body text-sm text-text-secondary">
           Please{" "}
-          <a href="/login" className="underline">
+          <a href="/login" className="tap underline">
             sign in
           </a>{" "}
           to use the AI Advisor.

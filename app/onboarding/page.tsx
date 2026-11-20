@@ -10,68 +10,21 @@ const traderOptions: {
   value: TraderType;
   label: string;
   description: string;
-  icon: React.ReactNode;
 }[] = [
   {
     value: "beginner",
     label: "Beginner",
     description: "I'm just getting started",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="14" fill="#F5C842" fillOpacity="0.12" />
-        <path
-          d="M9 18l3-4 3 3 4-6"
-          stroke="#D4A800"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="19" cy="11" r="2" fill="#F5C842" />
-      </svg>
-    ),
   },
   {
     value: "active",
     label: "Active Trader",
     description: "I trade regularly and follow the markets",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="14" fill="#F5C842" fillOpacity="0.12" />
-        <path
-          d="M7 15l3-5 3 3 3-4 4 5"
-          stroke="#D4A800"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="10" cy="10" r="1.5" fill="#F5C842" />
-        <circle cx="19" cy="14" r="1.5" fill="#E03B3B" />
-      </svg>
-    ),
   },
   {
     value: "experienced",
     label: "Experienced",
     description: "I've been investing for years",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <circle cx="14" cy="14" r="14" fill="#2D9E6B" fillOpacity="0.10" />
-        <path
-          d="M8 17l3-6 3 4 2-3 4 4"
-          stroke="#2D9E6B"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M18 9l2 2-2 2"
-          stroke="#2D9E6B"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
   },
 ];
 
@@ -140,76 +93,79 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        {/* Question */}
-        <p className="font-body text-sm font-semibold text-text-primary mb-4 text-center">
-          How would you describe yourself as a trader?
-        </p>
+        {/* Native radios: arrow keys move between options and screen
+            readers announce "1 of 3, selected". The inputs are visually
+            hidden; each card is the label, and shows the ring when its
+            input has keyboard focus. */}
+        <fieldset>
+          <legend className="font-body text-sm font-semibold text-text-primary mb-4 text-center w-full">
+            How would you describe yourself as a trader?
+          </legend>
 
-        {/* Options */}
-        <div className="flex flex-col gap-3">
-          {traderOptions.map((option) => {
-            const isSelected = selected === option.value;
-            return (
-              <button
-                key={option.value}
-                onClick={() => setSelected(option.value)}
-                className={`
-                  w-full flex items-center gap-4 px-6 py-5 rounded-card text-left
-                  border-2 transition-all duration-150 bg-white
-                  ${
-                    isSelected
-                      ? "border-canary shadow-card-canary"
-                      : "border-border hover:border-[#D4C89A] shadow-card"
-                  }
-                `}
-              >
-                <div className="shrink-0">{option.icon}</div>
-                <div>
-                  <p
-                    className={`font-body text-base font-semibold transition-colors ${
-                      isSelected ? "text-text-primary" : "text-text-primary"
-                    }`}
-                  >
-                    {option.label}
-                  </p>
-                  <p className="font-body text-sm text-text-secondary mt-0.5">
-                    {option.description}
-                  </p>
-                </div>
-                {/* Selection indicator */}
-                <div className="ml-auto shrink-0">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+          <div className="flex flex-col gap-3">
+            {traderOptions.map((option) => {
+              const isSelected = selected === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={`
+                    w-full flex items-center gap-4 px-6 py-5 rounded-card text-left cursor-pointer
+                    border-2 transition-all duration-150 bg-white
+                    has-[:focus-visible]:outline has-[:focus-visible]:outline-2
+                    has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#1A1A1A]
+                    ${
                       isSelected
-                        ? "border-canary bg-canary"
-                        : "border-border bg-white"
-                    }`}
-                  >
-                    {isSelected && (
-                      <svg
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                      >
-                        <path
-                          d="M2 5l2.5 2.5L8 3"
-                          stroke="#1A1A1A"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                        ? "border-canary shadow-card-canary"
+                        : "border-border hover:border-[#D4C89A] shadow-card"
+                    }
+                  `}
+                >
+                  <input
+                    type="radio"
+                    name="trader-type"
+                    value={option.value}
+                    checked={isSelected}
+                    onChange={() => setSelected(option.value)}
+                    className="sr-only"
+                  />
+                  <span className="block">
+                    <span className="block font-body text-base font-semibold text-text-primary">
+                      {option.label}
+                    </span>
+                    <span className="block font-body text-sm text-text-secondary mt-0.5">
+                      {option.description}
+                    </span>
+                  </span>
+                  {/* Selection indicator */}
+                  <span aria-hidden="true" className="ml-auto shrink-0">
+                    <span
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                        isSelected
+                          ? "border-canary bg-canary"
+                          : "border-border bg-white"
+                      }`}
+                    >
+                      {isSelected && (
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                          <path
+                            d="M2 5l2.5 2.5L8 3"
+                            stroke="#1A1A1A"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
 
         {error && (
-          <p className="font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mt-4">
+          <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mt-4">
             {error}
           </p>
         )}
@@ -225,7 +181,7 @@ export default function OnboardingPage() {
           </button>
           <button
             onClick={handleSkip}
-            className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
+            className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
           >
             Skip for now
           </button>

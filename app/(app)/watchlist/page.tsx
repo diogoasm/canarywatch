@@ -154,7 +154,7 @@ function AddStockForm({
         </div>
         <button
           onClick={onCancel}
-          className="text-text-secondary hover:text-text-primary transition-colors p-1"
+          className="tap text-text-secondary hover:text-text-primary transition-colors p-1"
           aria-label="Cancel"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -183,7 +183,7 @@ function AddStockForm({
             placeholder="e.g. 100"
             value={shares}
             onChange={(e) => setShares(e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
           />
         </div>
 
@@ -198,21 +198,21 @@ function AddStockForm({
             placeholder="e.g. 142.50"
             value={avgBuyPrice}
             onChange={(e) => setAvgBuyPrice(e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
           />
         </div>
 
         <button
           type="submit"
           disabled={saving}
-          className="bg-positive text-white font-body text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
+          className="tap bg-positive-ink text-white font-body text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
         >
           {saving ? "Adding…" : "Add to Watchlist"}
         </button>
       </form>
 
       {error && (
-        <p className="font-body text-xs text-urgent mt-2">{error}</p>
+        <p className="font-body text-xs text-urgent-ink mt-2">{error}</p>
       )}
     </div>
   );
@@ -311,7 +311,7 @@ function WatchlistRow({
             {changePercent !== null && changePercent !== 0 && (
               <p
                 className={`font-mono text-xs ${
-                  changePercent >= 0 ? "text-positive" : "text-urgent"
+                  changePercent >= 0 ? "text-positive-ink" : "text-urgent-ink"
                 }`}
               >
                 {changePercent >= 0 ? "+" : ""}
@@ -345,7 +345,7 @@ function WatchlistRow({
         ) : pnl !== null ? (
           <p
             className={`font-mono text-sm font-medium ${
-              pnl.dollars >= 0 ? "text-positive" : "text-urgent"
+              pnl.dollars >= 0 ? "text-positive-ink" : "text-urgent-ink"
             }`}
           >
             {pnl.dollars >= 0 ? "+" : "-"}$
@@ -363,7 +363,7 @@ function WatchlistRow({
         ) : pnl !== null ? (
           <p
             className={`font-mono text-sm font-bold ${
-              pnl.percent >= 0 ? "text-positive" : "text-urgent"
+              pnl.percent >= 0 ? "text-positive-ink" : "text-urgent-ink"
             }`}
           >
             {pnl.percent >= 0 ? "+" : ""}
@@ -377,7 +377,7 @@ function WatchlistRow({
       {/* Delete */}
       <button
         onClick={() => onDelete(item.id)}
-        className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:text-urgent hover:bg-[#FDF2F2] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="tap shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:text-urgent-ink hover:bg-[#FDF2F2] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
         title="Remove from watchlist"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -419,9 +419,9 @@ function NewsRow({ article }: { article: NewsArticle }) {
         target="_blank"
         rel="noopener noreferrer"
         title={article.headline}
-        className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 -mx-2 px-2 py-2.5 transition-colors duration-150 hover:bg-[#F0EDE6] focus-visible:bg-[#F0EDE6]"
+        className="grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[4rem_minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 -mx-2 px-2 py-3 transition-colors duration-150 hover:bg-[#F0EDE6] focus-visible:bg-[#F0EDE6]"
       >
-        <span className="font-mono text-[11px] font-medium text-[#B8901A]">
+        <span className="font-mono text-[11px] font-medium text-gold-ink">
           {article.ticker}
         </span>
         <span className="col-span-2 sm:col-span-1 order-last sm:order-none font-body text-sm text-text-primary line-clamp-2 sm:line-clamp-1">
@@ -458,7 +458,7 @@ function NewsList({ articles }: { articles: NewsArticle[] }) {
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mt-3 font-body text-sm text-text-primary underline underline-offset-2 hover:text-canary-dark transition-colors"
+          className="tap mt-3 font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
         >
           Show more
         </button>
@@ -713,7 +713,7 @@ export default function WatchlistPage() {
             />
             <p
               className={`font-mono text-sm font-semibold ${
-                totalPnL >= 0 ? "text-positive" : "text-urgent"
+                totalPnL >= 0 ? "text-positive-ink" : "text-urgent-ink"
               }`}
             >
               <CountUp
@@ -747,7 +747,7 @@ export default function WatchlistPage() {
 
       {/* ── Error ── */}
       {listError && (
-        <p className="font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mb-4">
+        <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mb-4">
           {listError}
         </p>
       )}

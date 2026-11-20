@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, DM_Sans, DM_Mono } from "next/font/google";
 import PageTransition from "@/components/PageTransition";
 import "./globals.css";
@@ -23,6 +23,14 @@ const dmMono = DM_Mono({
   weight: ["300", "400", "500"],
   display: "swap",
 });
+
+// cover lets env(safe-area-inset-*) report the notch and home indicator, so
+// the bottom nav can pad itself clear of them (see .safe-area-pb).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "Canary — Know before it moves",

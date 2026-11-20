@@ -18,7 +18,6 @@ const FEATURES: { name: string; free: PlanValue; premium: PlanValue }[] = [
   { name: "Canary warnings", free: true, premium: true },
   { name: "Latest news and market movers", free: true, premium: true },
   { name: "AI briefings", free: "2 a month", premium: "Unlimited" },
-  { name: "Single-stock deep dives", free: false, premium: true },
   { name: "Valuation tools and research guide", free: true, premium: true },
 ];
 
@@ -45,7 +44,7 @@ const PREMIUM_NOTE = "or €79 / year, save 34%";
 function PlanValueCell({ value }: { value: PlanValue }) {
   if (value === true) {
     return (
-      <span role="img" aria-label="Included" className="font-mono text-sm text-positive">
+      <span role="img" aria-label="Included" className="font-mono text-sm text-positive-ink">
         ✓
       </span>
     );

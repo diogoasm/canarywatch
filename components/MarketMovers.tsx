@@ -92,8 +92,8 @@ function marketLabel(updatedAt: string): string {
 }
 
 function toneClass(value: number): string {
-  if (value > 0) return "text-positive";
-  if (value < 0) return "text-urgent";
+  if (value > 0) return "text-positive-ink";
+  if (value < 0) return "text-urgent-ink";
   return "text-text-secondary";
 }
 
@@ -116,7 +116,7 @@ function MoverRow({ mover, index }: { mover: Mover; index: number }) {
         href={`https://finance.yahoo.com/quote/${mover.symbol}`}
         target="_blank"
         rel="noopener noreferrer"
-        className={`${COLUMNS} h-10 items-center -mx-2 px-2 transition-colors duration-150 hover:bg-[#F0EDE6]`}
+        className={`${COLUMNS} h-11 items-center -mx-2 px-2 transition-colors duration-150 hover:bg-[#F0EDE6]`}
       >
         <span className="font-mono text-[13px] font-bold text-text-primary">
           {mover.symbol}
@@ -190,7 +190,7 @@ export default function MarketMovers({ className }: { className?: string }) {
                 type="button"
                 aria-pressed={active}
                 onClick={() => setTab(t.key)}
-                className={`font-body text-[13px] py-1 border-b-2 transition-colors duration-150 ${
+                className={`tap font-body text-[13px] py-1 border-b-2 transition-colors duration-150 ${
                   active
                     ? "text-text-primary border-canary"
                     : "text-text-secondary border-transparent hover:text-text-primary"
@@ -224,7 +224,7 @@ export default function MarketMovers({ className }: { className?: string }) {
       ) : (
         <div aria-hidden>
           {Array.from({ length: ROW_COUNT }, (_, i) => (
-            <div key={i} className="h-[41px] flex items-center">
+            <div key={i} className="h-[45px] flex items-center">
               <div className="h-1 w-full bg-border animate-pulse" />
             </div>
           ))}

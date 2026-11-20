@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const LINK_CLASS =
-  "font-body text-sm text-text-primary underline underline-offset-4 hover:text-text-secondary transition-colors";
+  "tap font-body text-sm text-text-primary underline underline-offset-4 hover:text-text-secondary transition-colors";
 
 export default function NotFound() {
   return (

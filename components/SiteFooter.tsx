@@ -18,13 +18,13 @@ export default function SiteFooter() {
           <div className="flex items-center gap-6">
             <Link
               href="/privacy"
-              className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
+              className="tap font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               Privacy
             </Link>
             <Link
               href="/terms"
-              className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
+              className="tap font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               Terms
             </Link>

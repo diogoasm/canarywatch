@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -37,37 +37,100 @@ function DeleteModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  // Read through a ref so the effect below runs once, on open, and doesn't
+  // re-focus Cancel every time the parent re-renders.
+  const stateRef = useRef({ deleting, onCancel });
+  stateRef.current = { deleting, onCancel };
+
+  useEffect(() => {
+    // Whatever opened the dialog gets focus back when it closes.
+    const opener = document.activeElement as HTMLElement | null;
+    // Cancel, not the destructive button, takes focus first.
+    cancelRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        if (!stateRef.current.deleting) stateRef.current.onCancel();
+        return;
+      }
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      // Keep Tab inside the dialog while it's open.
+      const focusable = Array.from(
+        dialogRef.current.querySelectorAll<HTMLElement>("button:not([disabled])")
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus();
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       <div
+        aria-hidden="true"
         className="absolute inset-0 bg-[#1A1A1A]/60"
         onClick={deleting ? undefined : onCancel}
       />
-      <div className="relative card p-6 max-w-md w-full">
-        <h3 className="font-display text-lg font-bold text-text-primary mb-3">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+        className="relative card p-6 max-w-md w-full"
+      >
+        <h2
+          id="delete-dialog-title"
+          className="font-display text-lg font-bold text-text-primary mb-3"
+        >
           Are you sure?
-        </h3>
-        <p className="font-body text-sm text-text-primary leading-relaxed mb-5">
+        </h2>
+        <p
+          id="delete-dialog-description"
+          className="font-body text-sm text-text-primary leading-relaxed mb-5"
+        >
           This will permanently delete your account, watchlist and all
           briefings. This cannot be undone.
         </p>
         {error && (
-          <p className="font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-3 py-2 mb-4">
+          <p
+            role="alert"
+            className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-3 py-2 mb-4"
+          >
             {error}
           </p>
         )}
         <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
           <button
+            ref={cancelRef}
             onClick={onCancel}
             disabled={deleting}
-            className="font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-5 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
+            className="tap font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-5 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={deleting}
-            className="bg-urgent text-white font-body text-sm font-semibold rounded-lg px-5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="tap bg-urgent-ink text-white font-body text-sm font-semibold rounded-lg px-5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {deleting ? "Deleting…" : "Yes, delete everything"}
           </button>
@@ -199,7 +262,7 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
       {showUpgradedBanner && (
         <div className="bg-positive/10 border border-positive/30 rounded-lg px-4 py-3 mb-6">
-          <p className="font-body text-sm font-medium text-positive">
+          <p className="font-body text-sm font-medium text-positive-ink">
             🎉 Welcome to Premium! Unlimited briefings are now active.
           </p>
         </div>
@@ -238,7 +301,7 @@ export default function SettingsPage() {
               <button
                 onClick={handlePasswordReset}
                 disabled={sendingReset || !email}
-                className="font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-4 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
+                className="tap font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-4 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
               >
                 {sendingReset ? "Sending…" : "Change Password"}
               </button>
@@ -246,8 +309,8 @@ export default function SettingsPage() {
                 <p
                   className={`font-body text-sm ${
                     resetStatus.type === "success"
-                      ? "text-positive"
-                      : "text-urgent"
+                      ? "text-positive-ink"
+                      : "text-urgent-ink"
                   }`}
                 >
                   {resetStatus.message}
@@ -268,7 +331,7 @@ export default function SettingsPage() {
                   <span className="inline-flex items-center font-body text-xs font-bold bg-canary text-[#1A1A1A] px-3 py-1.5 rounded-full">
                     Premium
                   </span>
-                  <span className="inline-flex items-center font-body text-xs font-semibold text-positive bg-positive/10 px-3 py-1.5 rounded-full">
+                  <span className="inline-flex items-center font-body text-xs font-semibold text-positive-ink bg-positive/10 px-3 py-1.5 rounded-full">
                     Active subscription
                   </span>
                 </>
@@ -281,18 +344,18 @@ export default function SettingsPage() {
 
             {isPremium ? (
               <>
-                <p className="font-body text-sm text-positive font-medium mb-5">
+                <p className="font-body text-sm text-positive-ink font-medium mb-5">
                   Unlimited briefings
                 </p>
                 <button
                   onClick={handleManageSubscription}
                   disabled={openingPortal}
-                  className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60"
+                  className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60"
                 >
                   {openingPortal ? "Opening portal…" : "Manage Subscription"}
                 </button>
                 {portalError && (
-                  <p className="font-body text-xs text-urgent mt-2">
+                  <p className="font-body text-xs text-urgent-ink mt-2">
                     {portalError}
                   </p>
                 )}
@@ -310,7 +373,7 @@ export default function SettingsPage() {
                 </div>
                 <Link
                   href="/pricing"
-                  className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors"
+                  className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors"
                 >
                   Upgrade to Premium
                 </Link>
@@ -320,13 +383,13 @@ export default function SettingsPage() {
 
           {/* ── Section 3: Danger Zone ── */}
           <div className="card p-6">
-            <SectionLabel className="text-urgent">Danger Zone</SectionLabel>
+            <SectionLabel className="text-urgent-ink">Danger Zone</SectionLabel>
             <button
               onClick={() => {
                 setDeleteError(null);
                 setShowDeleteModal(true);
               }}
-              className="font-body text-sm font-semibold text-urgent border border-urgent rounded-lg px-4 py-2.5 hover:bg-[#FDF2F2] transition-colors"
+              className="tap font-body text-sm font-semibold text-urgent-ink border border-urgent rounded-lg px-4 py-2.5 hover:bg-[#FDF2F2] transition-colors"
             >
               Delete Account
             </button>

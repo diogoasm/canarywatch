@@ -36,6 +36,8 @@ const GREY = "#6B6B6B";
 const GREEN = "#2D9E6B";
 const CANARY = "#F5C842";
 const RED = "#E03B3B";
+// For text: RED is below 4.5:1 on the paper.
+const RED_INK = "#C42B2B";
 const RULE = "#E8E4DC";
 const PAPER = "#F7F5F0";
 
@@ -253,7 +255,7 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
             x={earningsX - 6}
             y={12}
             textAnchor="end"
-            fill={RED}
+            fill={RED_INK}
             style={appear(2)}
           >
             {EARNINGS_LABEL}

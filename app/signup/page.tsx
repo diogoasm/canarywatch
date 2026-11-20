@@ -71,7 +71,7 @@ export default function SignupPage() {
               Click it to activate your account and get started.
             </p>
           </div>
-          <Link href="/login" className="font-body text-sm text-text-secondary hover:text-text-primary transition-colors">
+          <Link href="/login" className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors">
             Back to login
           </Link>
         </div>
@@ -82,7 +82,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 mb-8">
+      <Link href="/" className="tap flex items-center gap-2 mb-8">
         <CanaryLogoIcon size={28} />
         <span className="font-display text-xl font-semibold text-text-primary">
           Canary
@@ -115,7 +115,7 @@ export default function SignupPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function SignupPage() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
             />
           </div>
 
@@ -153,12 +153,12 @@ export default function SignupPage() {
               placeholder="Repeat your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
             />
           </div>
 
           {error && (
-            <p className="font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
+            <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
               {error}
             </p>
           )}
@@ -176,7 +176,7 @@ export default function SignupPage() {
           Already have an account?{" "}
           <Link
             href="/login"
-            className="text-text-primary font-medium hover:underline"
+            className="tap text-text-primary font-medium hover:underline"
           >
             Log in
           </Link>
@@ -185,14 +185,18 @@ export default function SignupPage() {
 
       <p className="font-body text-xs text-text-secondary mt-6 text-center max-w-sm">
         By creating an account you agree to our{" "}
-        <Link href="/terms" className="hover:underline">
-          Terms
-        </Link>{" "}
-        and{" "}
-        <Link href="/privacy" className="hover:underline">
-          Privacy Policy
-        </Link>
-        .
+        {/* Kept on one line so the two links' tap areas sit side by side
+            instead of overlapping across a line break. */}
+        <span className="whitespace-nowrap">
+          <Link href="/terms" className="tap hover:underline">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="tap hover:underline">
+            Privacy Policy
+          </Link>
+          .
+        </span>
       </p>
     </div>
   );

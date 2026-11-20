@@ -35,6 +35,25 @@
   * {
     box-sizing: border-box;
   }
+
+  /* One focus ring for every control, shown for keyboard use. Inputs match
+     :focus-visible on click too, so they always show it. */
+  :focus-visible {
+    outline: 2px solid #1A1A1A;
+    outline-offset: 2px;
+  }
+
+  /* On the near-black sections the ring switches to canary. */
+  .on-dark :focus-visible {
+    outline-color: #F5C842;
+  }
+
+  /* Viewport-fit=cover lets the page reach under a notch in landscape, so
+     the content keeps clear of it here. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
 @layer components {
@@ -47,7 +66,7 @@
   }
 
   .btn-primary {
-    @apply bg-canary text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
+    @apply tap bg-canary text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
            hover:bg-canary-dark cursor-pointer;
     transition: transform 150ms ease-out, background-color 150ms ease-out,
                 box-shadow 150ms ease-out;
@@ -65,7 +84,7 @@
   }
 
   .btn-outline {
-    @apply bg-transparent text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
+    @apply tap bg-transparent text-text-primary font-body font-semibold px-5 py-2.5 rounded-lg
            border border-border hover:border-text-secondary transition-colors duration-150 cursor-pointer;
   }
 
@@ -87,6 +106,37 @@
 
   .price-flash-down {
     animation: priceFlashDown 400ms ease-out;
+  }
+}
+
+@layer utilities {
+  /* A 44×44px minimum hit area without changing how the control looks: an
+     invisible box centred on it, at least 44px each way. Leave it off
+     anything absolutely positioned or clipped with overflow:hidden. */
+  .tap {
+    position: relative;
+  }
+  .tap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
+  /* For full-width rows inside clipped containers, where an outside ring
+     would be cut off. */
+  .focus-inset:focus-visible {
+    outline-offset: -2px;
+  }
+
+  /* Bottom nav: clears the iPhone home indicator and the landscape notch. */
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 }
 

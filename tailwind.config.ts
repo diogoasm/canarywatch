@@ -17,6 +17,12 @@ const config: Config = {
         "canary-dark": "#D4A800",
         urgent: "#E03B3B",
         positive: "#2D9E6B",
+        // Darker versions for text. The bright ones above are for dots, bars,
+        // fills and the canaries; as text they fall below 4.5:1 on the paper.
+        // Each passes 4.5:1 on #F7F5F0, white, #F0EDE6 and the tinted boxes.
+        "positive-ink": "#1E7650",
+        "urgent-ink": "#C42B2B",
+        "gold-ink": "#86670F",
         border: "#E8E4DC",
       },
       fontFamily: {

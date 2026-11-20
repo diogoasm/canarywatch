@@ -81,7 +81,7 @@ export default function HowItWorksPage() {
         <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col gap-16">
           {STEPS.map((step) => (
             <div key={step.number} className="flex flex-col gap-3">
-              <span className="font-mono text-4xl sm:text-5xl text-canary">
+              <span className="font-mono text-4xl sm:text-5xl text-gold-ink">
                 {step.number}
               </span>
               <h2 className="font-playfair text-2xl sm:text-3xl font-bold text-text-primary">
@@ -96,7 +96,7 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ── Section 4: The philosophy ── */}
-      <section className="bg-[#1A1A1A] py-24 sm:py-32">
+      <section className="on-dark bg-[#1A1A1A] py-24 sm:py-32">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-white mb-8">
             Intelligence without noise.
@@ -126,7 +126,7 @@ export default function HowItWorksPage() {
         </h2>
         <Link
           href="/signup"
-          className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-7 py-3 rounded-lg hover:bg-canary-dark transition-colors"
+          className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-7 py-3 rounded-lg hover:bg-canary-dark transition-colors"
         >
           Create your free account
         </Link>

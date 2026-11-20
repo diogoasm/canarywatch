@@ -183,7 +183,7 @@ export default async function Home() {
                   delay={index * 0.06}
                   className="grid grid-cols-[2.5rem_minmax(0,1fr)] md:grid-cols-[4rem_minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-x-4 md:gap-x-6 gap-y-2 py-8 sm:py-10"
                 >
-                  <span className="font-mono text-sm tabular-nums text-[#B8901A]">
+                  <span className="font-mono text-sm tabular-nums text-gold-ink">
                     {number}
                   </span>
                   <h3 className="font-display text-xl sm:text-2xl text-text-primary">
@@ -200,7 +200,7 @@ export default async function Home() {
       </section>
 
       {/* ── Close ────────────────────────────────────────────────────────── */}
-      <section className="bg-[#1A1A1A]">
+      <section className="on-dark bg-[#1A1A1A]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 flex flex-col items-start gap-8">
           <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight text-balance">
             Don&apos;t find out the day after.

@@ -165,7 +165,7 @@ function PremiumDiscountRow({
     <ValueRow
       label="Premium / Discount to Intrinsic Value"
       value={`${Math.abs(pct).toFixed(1)}% ${above ? "above" : "below"} intrinsic value`}
-      valueClass={above ? "text-urgent" : "text-positive"}
+      valueClass={above ? "text-urgent-ink" : "text-positive-ink"}
     />
   );
 }
@@ -470,13 +470,15 @@ function QuickPicks({
         const active = h.ticker === selectedTicker;
         return (
           <Fragment key={h.ticker}>
-            {i > 0 && " · "}
+            {/* The extra space keeps neighbouring 44px tap areas from
+                overlapping when a ticker is short (KO). */}
+            {i > 0 && <span className="mx-1.5"> · </span>}
             <button
               type="button"
               title={h.company_name}
               aria-pressed={active}
               onClick={() => onPick({ ...h, exchange: "" })}
-              className={`font-mono underline underline-offset-4 transition-colors ${
+              className={`tap font-mono underline underline-offset-4 transition-colors ${
                 active
                   ? "text-[#1A1A1A] decoration-canary decoration-2"
                   : "text-text-secondary decoration-text-secondary/40 hover:text-[#1A1A1A]"

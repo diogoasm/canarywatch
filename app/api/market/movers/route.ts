@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
 const STABLE_URL = "https://financialmodelingprep.com/stable";
-const MIN_PRICE = 2;
+// Above $5 only: keeps penny stocks off the homepage. FMP's free plan has
+// no market cap for most of these symbols, so price is the filter.
+const MIN_PRICE = 5;
 const LIST_SIZE = 8;
 // Moves beyond these are almost always reverse splits or bad data.
 const MAX_GAIN_PCT = 200;
@@ -28,7 +30,7 @@ const DERIVATIVE_SYMBOL = /^[A-Z]{4}[WUR]$/;
 
 function isCommonStock({ symbol, name, price }: FmpMover): boolean {
   return (
-    price >= MIN_PRICE &&
+    price > MIN_PRICE &&
     /^[A-Z]{1,5}$/.test(symbol) &&
     !DERIVATIVE_SYMBOL.test(symbol) &&
     !NON_STOCK_NAME.test(name)

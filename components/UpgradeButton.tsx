@@ -63,7 +63,7 @@ export default function UpgradeButton({
         <button
           onClick={handleUpgrade}
           disabled={loading}
-          className={`font-body text-sm underline underline-offset-2 transition-colors disabled:opacity-50 ${
+          className={`tap font-body text-sm underline underline-offset-2 transition-colors disabled:opacity-50 ${
             dark
               ? "text-[#B0B0B0] hover:text-canary"
               : "text-text-secondary hover:text-text-primary"
@@ -72,7 +72,7 @@ export default function UpgradeButton({
           {loading ? "Redirecting…" : "or upgrade annually — €79/year"}
         </button>
         {error && (
-          <span className="block font-body text-xs text-urgent mt-2">
+          <span className="block font-body text-xs text-urgent-ink mt-2">
             {error}
           </span>
         )}
@@ -85,12 +85,12 @@ export default function UpgradeButton({
       <button
         onClick={handleUpgrade}
         disabled={loading}
-        className="inline-block bg-canary text-[#1A1A1A] font-playfair text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="tap inline-block bg-canary text-[#1A1A1A] font-playfair text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Redirecting to checkout…" : "Upgrade"}
       </button>
       {error && (
-        <span className="block font-body text-xs text-urgent mt-2">{error}</span>
+        <span className="block font-body text-xs text-urgent-ink mt-2">{error}</span>
       )}
     </span>
   );

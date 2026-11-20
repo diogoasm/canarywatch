@@ -103,7 +103,7 @@ export default function StockSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors shadow-card"
+          className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors shadow-card"
         />
       </div>
 
@@ -114,7 +114,7 @@ export default function StockSearch({
             <button
               key={result.ticker}
               onClick={() => handleSelect(result)}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background transition-colors border-b border-border last:border-0"
+              className="focus-inset w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-background transition-colors border-b border-border last:border-0"
             >
               <span className="font-mono text-sm font-bold text-text-primary w-16 shrink-0">
                 {result.ticker}

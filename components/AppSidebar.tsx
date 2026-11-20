@@ -26,7 +26,7 @@ const navLinks: NavLink[] = [
   },
   {
     href: "/advisor",
-    label: "AI Advisor",
+    label: "Advisor",
     icon: (active) => (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <path
@@ -71,7 +71,7 @@ const navLinks: NavLink[] = [
   },
   {
     href: "/learn",
-    label: "Research Guide",
+    label: "Research guide",
     icon: (active) => (
       <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
         <path
@@ -151,6 +151,7 @@ export default function AppSidebar() {
             <Link
               key={link.href}
               href={link.href}
+              aria-current={active ? "page" : undefined}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
                 active
                   ? "bg-white shadow-card text-text-primary font-medium"
@@ -176,7 +177,7 @@ export default function AppSidebar() {
         )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-body text-sm text-text-secondary hover:text-urgent hover:bg-[#FDF2F2] transition-colors duration-150"
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-body text-sm text-text-secondary hover:text-urgent-ink hover:bg-[#FDF2F2] transition-colors duration-150"
         >
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
             <path

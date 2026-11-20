@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { CanaryLogoIcon } from "./CanaryIcon";
@@ -14,10 +15,18 @@ const NAV_LINKS = [
   { href: "/pricing", label: "Pricing" },
 ];
 
+// "/" only matches itself; the others also match their subpages.
+function isCurrent(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const reduce = useReducedMotion();
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -71,15 +80,19 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="tap flex items-center gap-2 group">
             <motion.div
-              animate={{ rotate: [0, -8, 0] }}
-              transition={{
-                duration: 2.5,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatDelay: 1.5,
-              }}
+              animate={reduce ? undefined : { rotate: [0, -8, 0] }}
+              transition={
+                reduce
+                  ? undefined
+                  : {
+                      duration: 2.5,
+                      ease: "easeInOut",
+                      repeat: Infinity,
+                      repeatDelay: 1.5,
+                    }
+              }
               style={{ transformOrigin: "60% 75%", display: "inline-block" }}
             >
               <CanaryLogoIcon size={26} />
@@ -95,7 +108,8 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
+                aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
+                className="tap font-playfair text-sm text-text-secondary hover:text-text-primary aria-[current=page]:text-text-primary transition-colors duration-150"
               >
                 {link.label}
               </Link>
@@ -107,7 +121,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={() => setMenuOpen((open) => !open)}
-              className="md:hidden flex items-center justify-center -ml-1 p-1 cursor-pointer"
+              className="tap md:hidden flex items-center justify-center -ml-1 p-1 cursor-pointer"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
@@ -136,14 +150,15 @@ export default function Navbar() {
             >
               {user ? (
                 <>
-                  <Link href="/watchlist">
-                    <button className="btn-primary font-playfair text-xs px-3 py-1.5">
-                      My Portfolio →
-                    </button>
+                  <Link
+                    href="/watchlist"
+                    className="btn-primary font-playfair text-xs px-3 py-1.5"
+                  >
+                    My Portfolio →
                   </Link>
                   <Link
                     href="/settings"
-                    className="w-9 h-9 rounded-full bg-canary text-[#1A1A1A] font-body text-sm font-bold flex items-center justify-center hover:bg-canary-dark transition-colors"
+                    className="tap w-9 h-9 rounded-full bg-canary text-[#1A1A1A] font-body text-sm font-bold flex items-center justify-center hover:bg-canary-dark transition-colors"
                     title={user.email ?? "Settings"}
                     aria-label="Account settings"
                   >
@@ -154,14 +169,15 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/login"
-                    className="font-playfair text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
+                    className="tap font-playfair text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
                   >
                     Login
                   </Link>
-                  <Link href="/signup">
-                    <button className="btn-primary font-playfair text-sm px-3 py-1.5">
-                      Get Started
-                    </button>
+                  <Link
+                    href="/signup"
+                    className="btn-primary font-playfair text-sm px-3 py-1.5"
+                  >
+                    Get Started
                   </Link>
                 </>
               )}
@@ -179,14 +195,15 @@ export default function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: reduce ? 0 : 0.2, ease: "easeOut" }}
           >
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="block font-playfair text-base text-text-primary py-3 px-6 border-b border-border"
+                aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
+                className="focus-inset block font-playfair text-base text-text-primary py-3 px-6 border-b border-border"
               >
                 {link.label}
               </Link>

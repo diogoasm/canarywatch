@@ -59,7 +59,7 @@ function LoginForm() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2 mb-8">
+      <Link href="/" className="tap flex items-center gap-2 mb-8">
         <CanaryLogoIcon size={28} />
         <span className="font-display text-xl font-semibold text-text-primary">
           Canary
@@ -92,12 +92,15 @@ function LoginForm() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
+            {/* The row is 44px tall so "Forgot password?" gets a full tap
+                target; -mt-5 takes that height out of the gap above, so the
+                fields stay where they were. */}
+            <div className="flex items-end justify-between -mt-5">
               <label
                 htmlFor="password"
                 className="font-body text-sm font-medium text-text-primary"
@@ -108,7 +111,7 @@ function LoginForm() {
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={resetLoading}
-                className="font-body text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                className="inline-flex items-end min-h-[44px] font-body text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
               >
                 {resetLoading ? "Sending…" : "Forgot password?"}
               </button>
@@ -121,18 +124,18 @@ function LoginForm() {
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
             />
           </div>
 
           {error && (
-            <p className="font-body text-sm text-urgent bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
+            <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
               {error}
             </p>
           )}
 
           {resetSent && (
-            <p className="font-body text-sm text-positive bg-[#F2FBF7] border border-[#C3E8D7] rounded-lg px-4 py-3">
+            <p className="font-body text-sm text-positive-ink bg-[#F2FBF7] border border-[#C3E8D7] rounded-lg px-4 py-3">
               Password reset email sent. Check your inbox.
             </p>
           )}
@@ -150,7 +153,7 @@ function LoginForm() {
           Don&apos;t have an account?{" "}
           <Link
             href="/signup"
-            className="text-text-primary font-medium hover:underline"
+            className="tap text-text-primary font-medium hover:underline"
           >
             Get started free
           </Link>

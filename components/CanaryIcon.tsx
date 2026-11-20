@@ -12,6 +12,9 @@ interface CanaryIconProps {
   glow?: boolean;
 }
 
+// Plays once, then this many times in all.
+const PULSE_COUNT = 3;
+
 const statusColors: Record<CanaryStatus, string> = {
   red: "#E03B3B",
   yellow: "#F5C842",
@@ -30,8 +33,10 @@ export default function CanaryIcon({
   const label = getCanaryLabel(status);
   const reduce = useReducedMotion();
 
-  const pulsing = !reduce && (status === "red" || status === "yellow" || status === "green");
-  const pulseDuration = status === "red" ? 1.5 : 3;
+  // Only red asks for attention: three pulses, then it holds still. Yellow
+  // and green never move.
+  const pulsing = !reduce && status === "red";
+  const pulseDuration = 1.5;
   const glowing = glow && status === "red" && !reduce;
 
   const animateProps: Record<string, (number | string)[]> = {};
@@ -41,7 +46,7 @@ export default function CanaryIcon({
     animateProps.scale = [1, 1.08, 1];
     transitionProps.scale = {
       duration: pulseDuration,
-      repeat: Infinity,
+      repeat: PULSE_COUNT - 1,
       ease: "easeInOut",
     };
   }
@@ -52,8 +57,8 @@ export default function CanaryIcon({
       "0 0 0px rgba(224,59,59,0)",
     ];
     transitionProps.boxShadow = {
-      duration: 2,
-      repeat: Infinity,
+      duration: pulseDuration,
+      repeat: PULSE_COUNT - 1,
       ease: "easeInOut",
     };
   }

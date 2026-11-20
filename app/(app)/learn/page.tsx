@@ -68,19 +68,19 @@ function EpsBeatVisual() {
         <text x={160 + barW / 2} y="115" textAnchor="middle" fontSize="11" fill="#6B6B6B" fontFamily="var(--font-dm-sans), sans-serif">
           Actual
         </text>
-        <text x={160 + barW / 2} y="18" textAnchor="middle" fontSize="12" fill="#2D9E6B" fontFamily="var(--font-dm-mono), monospace">
+        <text x={160 + barW / 2} y="18" textAnchor="middle" fontSize="12" fill="#1E7650" fontFamily="var(--font-dm-mono), monospace">
           $1.28
         </text>
         {/* BEAT badge */}
-        <rect x="272" y="50" width="54" height="24" rx="12" fill="#2D9E6B" />
+        <rect x="272" y="50" width="54" height="24" rx="12" fill="#1E7650" />
         <text x="299" y="66" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#FFFFFF" fontFamily="var(--font-dm-sans), sans-serif">
           BEAT
         </text>
       </svg>
       <p className="font-body text-xs text-text-secondary mt-2">
         When actual EPS lands above the estimate, the company{" "}
-        <span className="text-positive font-medium">beat</span>. Below it, a{" "}
-        <span className="text-urgent font-medium">miss</span>.
+        <span className="text-positive-ink font-medium">beat</span>. Below it, a{" "}
+        <span className="text-urgent-ink font-medium">miss</span>.
       </p>
     </div>
   );
@@ -238,7 +238,7 @@ export default function LearnPage() {
             </div>
             <Link
               href="/valuation"
-              className="inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors mt-5"
+              className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors mt-5"
             >
               Try the Valuation Tool →
             </Link>
