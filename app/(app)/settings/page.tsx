@@ -2,27 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
+import { AppPage, Masthead, Section } from "@/components/AppPage";
+import Button from "@/components/Button";
 
 const MONTHLY_LIMIT = 2;
-
-function SectionLabel({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <p
-      className={`font-mono text-xs uppercase tracking-widest mb-4 ${className}`}
-    >
-      {children}
-    </p>
-  );
-}
 
 // ─── Delete confirmation modal ─────────────────────────────────────────────
 
@@ -119,21 +104,17 @@ function DeleteModal({
           </p>
         )}
         <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-          <button
+          <Button
             ref={cancelRef}
+            kind="secondary"
             onClick={onCancel}
             disabled={deleting}
-            className="tap font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-5 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={deleting}
-            className="tap bg-urgent-ink text-white font-body text-sm font-semibold rounded-lg px-5 py-2.5 hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
+          </Button>
+          <Button tone="danger" onClick={onConfirm} disabled={deleting}>
             {deleting ? "Deleting…" : "Yes, delete everything"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -259,54 +240,50 @@ export default function SettingsPage() {
   const usagePct = (briefingsUsed / MONTHLY_LIMIT) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+    <AppPage>
+      <Masthead label="Your account" title="Settings" />
+
       {showUpgradedBanner && (
-        <div className="bg-positive/10 border border-positive/30 rounded-lg px-4 py-3 mb-6">
-          <p className="font-body text-sm font-medium text-positive-ink">
-            🎉 Welcome to Premium! Unlimited briefings are now active.
-          </p>
-        </div>
+        <p
+          role="status"
+          className="border-t border-border py-4 font-body text-sm font-medium text-positive-ink"
+        >
+          Welcome to Premium. Unlimited briefings are now active.
+        </p>
       )}
 
-      <h1 className="font-display text-3xl font-bold text-text-primary mb-8">
-        Settings
-      </h1>
-
       {loading ? (
-        <div className="flex flex-col gap-5">
+        <div aria-hidden="true">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse">
-              <div className="h-3 bg-border rounded w-24 mb-4" />
-              <div className="h-4 bg-background rounded w-48 mb-3" />
-              <div className="h-9 bg-background rounded w-36" />
+            <div key={i} className="border-t border-border py-10 sm:py-12 animate-pulse">
+              <div className="h-3 bg-border w-24 mb-6" />
+              <div className="h-4 bg-border/60 w-48 mb-4" />
+              <div className="h-11 bg-border/60 w-40 rounded-lg" />
             </div>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-5">
-          {/* ── Section 1: Account ── */}
-          <div className="card p-6">
-            <SectionLabel className="text-text-secondary">
-              Account
-            </SectionLabel>
-            <div className="mb-5">
-              <p className="font-body text-xs text-text-secondary uppercase tracking-wide mb-1">
+        <>
+          <Section label="Account">
+            <dl className="mb-6">
+              <dt className="font-body text-sm text-text-secondary mb-1">
                 Email address
-              </p>
-              <p className="font-body text-sm text-text-primary">
+              </dt>
+              <dd className="font-body text-base text-text-primary">
                 {email ?? "—"}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
+              </dd>
+            </dl>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <Button
+                kind="secondary"
                 onClick={handlePasswordReset}
                 disabled={sendingReset || !email}
-                className="tap font-body text-sm font-semibold text-text-primary border border-border rounded-lg px-4 py-2.5 hover:border-text-secondary transition-colors disabled:opacity-50"
               >
-                {sendingReset ? "Sending…" : "Change Password"}
-              </button>
+                {sendingReset ? "Sending…" : "Change password"}
+              </Button>
               {resetStatus && (
                 <p
+                  role="status"
                   className={`font-body text-sm ${
                     resetStatus.type === "success"
                       ? "text-positive-ink"
@@ -317,84 +294,79 @@ export default function SettingsPage() {
                 </p>
               )}
             </div>
-          </div>
+          </Section>
 
-          {/* ── Section 2: Subscription ── */}
-          <div className="card p-6">
-            <SectionLabel className="text-text-secondary">
-              Subscription
-            </SectionLabel>
-
-            <div className="flex items-center gap-3 mb-5">
-              {isPremium ? (
-                <>
-                  <span className="inline-flex items-center font-body text-xs font-bold bg-canary text-[#1A1A1A] px-3 py-1.5 rounded-full">
-                    Premium
-                  </span>
-                  <span className="inline-flex items-center font-body text-xs font-semibold text-positive-ink bg-positive/10 px-3 py-1.5 rounded-full">
-                    Active subscription
-                  </span>
-                </>
-              ) : (
-                <span className="inline-flex items-center font-body text-xs font-semibold bg-background border border-border text-text-secondary px-3 py-1.5 rounded-full">
-                  Free Plan
-                </span>
-              )}
-            </div>
+          <Section label="Subscription">
+            <dl className="mb-6">
+              <dt className="font-body text-sm text-text-secondary mb-1">Plan</dt>
+              <dd className="font-body text-base text-text-primary">
+                {isPremium ? (
+                  <>
+                    Premium{" "}
+                    <span className="text-positive-ink">· Active, unlimited briefings</span>
+                  </>
+                ) : (
+                  "Free"
+                )}
+              </dd>
+            </dl>
 
             {isPremium ? (
               <>
-                <p className="font-body text-sm text-positive-ink font-medium mb-5">
-                  Unlimited briefings
-                </p>
-                <button
+                <Button
+                  kind="secondary"
                   onClick={handleManageSubscription}
                   disabled={openingPortal}
-                  className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60"
                 >
-                  {openingPortal ? "Opening portal…" : "Manage Subscription"}
-                </button>
+                  {openingPortal ? "Opening portal…" : "Manage subscription"}
+                </Button>
                 {portalError && (
-                  <p className="font-body text-xs text-urgent-ink mt-2">
+                  <p role="alert" className="font-body text-sm text-urgent-ink mt-3">
                     {portalError}
                   </p>
                 )}
               </>
             ) : (
               <>
-                <p className="font-body text-sm text-text-primary mb-2">
-                  {briefingsUsed} of {MONTHLY_LIMIT} briefings used this month
+                <p className="font-body text-sm text-text-primary mb-3">
+                  <span className="font-mono tabular-nums">{briefingsUsed}</span> of{" "}
+                  <span className="font-mono tabular-nums">{MONTHLY_LIMIT}</span>{" "}
+                  briefings used this month
                 </p>
-                <div className="w-full h-1 bg-border/70 rounded-full overflow-hidden mb-6">
+                <div
+                  role="progressbar"
+                  aria-label="Briefings used this month"
+                  aria-valuemin={0}
+                  aria-valuemax={MONTHLY_LIMIT}
+                  aria-valuenow={briefingsUsed}
+                  className="w-full max-w-sm h-px bg-border mb-8"
+                >
                   <div
-                    className="h-full bg-canary rounded-full transition-all duration-500"
+                    className="h-[3px] -mt-px bg-canary"
                     style={{ width: `${usagePct}%` }}
                   />
                 </div>
-                <Link
-                  href="/pricing"
-                  className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors"
-                >
-                  Upgrade to Premium
-                </Link>
+                <Button href="/pricing">Upgrade to Premium</Button>
               </>
             )}
-          </div>
+          </Section>
 
-          {/* ── Section 3: Danger Zone ── */}
-          <div className="card p-6">
-            <SectionLabel className="text-urgent-ink">Danger Zone</SectionLabel>
-            <button
+          <Section label="Delete account" labelClassName="text-urgent-ink">
+            <p className="font-body text-sm text-text-secondary leading-relaxed mb-6 max-w-prose">
+              Permanently removes your account, watchlist and every briefing.
+            </p>
+            <Button
+              kind="secondary"
+              tone="danger"
               onClick={() => {
                 setDeleteError(null);
                 setShowDeleteModal(true);
               }}
-              className="tap font-body text-sm font-semibold text-urgent-ink border border-urgent rounded-lg px-4 py-2.5 hover:bg-[#FDF2F2] transition-colors"
             >
-              Delete Account
-            </button>
-          </div>
-        </div>
+              Delete account
+            </Button>
+          </Section>
+        </>
       )}
 
       {showDeleteModal && (
@@ -405,6 +377,6 @@ export default function SettingsPage() {
           onConfirm={handleDeleteAccount}
         />
       )}
-    </div>
+    </AppPage>
   );
 }

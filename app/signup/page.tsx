@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Button from "@/components/Button";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
@@ -59,7 +60,7 @@ export default function SignupPage() {
   if (checkEmail) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
-        <div className="card w-full max-w-md p-10 flex flex-col items-center text-center gap-6">
+        <div className="w-full max-w-sm flex flex-col items-center text-center gap-6">
           <CanaryLogoIcon size={40} />
           <div>
             <h1 className="font-display text-2xl font-bold text-text-primary mb-2">
@@ -71,9 +72,9 @@ export default function SignupPage() {
               Click it to activate your account and get started.
             </p>
           </div>
-          <Link href="/login" className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors">
+          <Button href="/login" kind="text" muted>
             Back to login
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -89,7 +90,8 @@ export default function SignupPage() {
         </span>
       </Link>
 
-      <div className="card w-full max-w-md p-10">
+      {/* The form sits on the paper itself; no card. */}
+      <div className="w-full max-w-sm">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-text-primary mb-2">
             Create your account
@@ -115,7 +117,7 @@ export default function SignupPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -134,7 +136,7 @@ export default function SignupPage() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -143,7 +145,7 @@ export default function SignupPage() {
               htmlFor="confirm-password"
               className="font-body text-sm font-medium text-text-primary"
             >
-              Confirm Password
+              Confirm password
             </label>
             <input
               id="confirm-password"
@@ -153,7 +155,7 @@ export default function SignupPage() {
               placeholder="Repeat your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -163,23 +165,16 @@ export default function SignupPage() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-3 text-sm disabled:opacity-60 disabled:cursor-not-allowed mt-1"
-          >
-            {loading ? "Creating account…" : "Get Started Free"}
-          </button>
+          <Button type="submit" disabled={loading} className="w-full mt-1">
+            {loading ? "Creating account…" : "Get started free"}
+          </Button>
         </form>
 
-        <p className="font-body text-sm text-text-secondary text-center mt-6">
+        <p className="font-body text-sm text-text-secondary text-center mt-8 pt-6 border-t border-border">
           Already have an account?{" "}
-          <Link
-            href="/login"
-            className="tap text-text-primary font-medium hover:underline"
-          >
+          <Button href="/login" kind="text">
             Log in
-          </Link>
+          </Button>
         </p>
       </div>
 

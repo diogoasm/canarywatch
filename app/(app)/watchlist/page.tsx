@@ -11,6 +11,9 @@ import StockSearch from "@/components/StockSearch";
 import { fetchQuote } from "@/lib/quotes";
 import type { StockSearchResult, WatchlistItem } from "@/types";
 import { calculatePnL, resolveHoldingCanary } from "@/lib/utils";
+import { formatMoney, formatPercent } from "@/lib/format";
+import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
+import Button from "@/components/Button";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -142,7 +145,7 @@ function AddStockForm({
   }
 
   return (
-    <div className="card p-5 mt-3 border-t-2 border-t-canary">
+    <div className="mt-4 pt-5 pb-6 border-t-2 border-canary border-b border-b-border">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-sm font-bold text-text-primary">
@@ -202,13 +205,9 @@ function AddStockForm({
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="tap bg-positive-ink text-white font-body text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 shrink-0"
-        >
-          {saving ? "Adding…" : "Add to Watchlist"}
-        </button>
+        <Button type="submit" disabled={saving} className="shrink-0">
+          {saving ? "Adding…" : "Add to watchlist"}
+        </Button>
       </form>
 
       {error && (
@@ -306,7 +305,7 @@ function WatchlistRow({
         ) : price !== null ? (
           <>
             <p className={`font-mono text-sm text-text-primary ${flashClass}`}>
-              ${price.toFixed(2)}
+              {formatMoney(price)}
             </p>
             {changePercent !== null && changePercent !== 0 && (
               <p
@@ -314,8 +313,7 @@ function WatchlistRow({
                   changePercent >= 0 ? "text-positive-ink" : "text-urgent-ink"
                 }`}
               >
-                {changePercent >= 0 ? "+" : ""}
-                {changePercent.toFixed(2)}%
+                {formatPercent(changePercent)}
               </p>
             )}
           </>
@@ -333,7 +331,7 @@ function WatchlistRow({
       {/* Avg buy price */}
       <div className="text-right hidden md:block w-20 shrink-0">
         <p className="font-mono text-sm text-text-secondary">
-          ${Number(item.avg_buy_price).toFixed(2)}
+          {formatMoney(Number(item.avg_buy_price))}
         </p>
         <p className="font-body text-xs text-text-secondary">avg cost</p>
       </div>
@@ -348,8 +346,7 @@ function WatchlistRow({
               pnl.dollars >= 0 ? "text-positive-ink" : "text-urgent-ink"
             }`}
           >
-            {pnl.dollars >= 0 ? "+" : "-"}$
-            {Math.abs(pnl.dollars).toFixed(2)}
+            {formatMoney(pnl.dollars, { signed: true })}
           </p>
         ) : (
           <p className="font-mono text-sm text-text-secondary">—</p>
@@ -366,8 +363,7 @@ function WatchlistRow({
               pnl.percent >= 0 ? "text-positive-ink" : "text-urgent-ink"
             }`}
           >
-            {pnl.percent >= 0 ? "+" : ""}
-            {pnl.percent.toFixed(2)}%
+            {formatPercent(pnl.percent)}
           </p>
         ) : (
           <p className="font-mono text-sm text-text-secondary">—</p>
@@ -455,13 +451,9 @@ function NewsList({ articles }: { articles: NewsArticle[] }) {
         ))}
       </ul>
       {shown.length < articles.length && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="tap mt-3 font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
-        >
+        <Button kind="text" onClick={() => setExpanded(true)} className="mt-3">
           Show more
-        </button>
+        </Button>
       )}
     </>
   );
@@ -472,9 +464,7 @@ function NewsSection({ news }: { news: NewsState }) {
 
   return (
     <div className="mt-10">
-      <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-4">
-        Latest News
-      </p>
+      <SectionLabel className="text-text-secondary !mb-4">Latest news</SectionLabel>
       {news.status === "loading" ? (
         <div aria-hidden className="border-t border-border">
           {[1, 2, 3, 4].map((i) => (
@@ -687,50 +677,41 @@ export default function WatchlistPage() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-8">
-        <div className="flex-1 min-w-0">
-          <h1 className="font-display text-3xl font-bold text-text-primary">
-            My Watchlist
-          </h1>
-          <p className="font-body text-sm text-text-secondary mt-1">
-            Your portfolio, watched.
-          </p>
-          {items.length > 0 && (
-            <div className="mt-5">
-              <CanaryStrip holdings={canaries} />
-            </div>
-          )}
-        </div>
-
-        {hasLiveData && items.length > 0 && (
-          <div className="text-left sm:text-right">
-            <CountUp
-              value={totals.currentValue}
-              prefix="$"
-              className="font-mono text-xl font-bold text-text-primary"
-            />
-            <p
-              className={`font-mono text-sm font-semibold ${
-                totalPnL >= 0 ? "text-positive-ink" : "text-urgent-ink"
-              }`}
-            >
+    <AppPage>
+      <Masthead
+        label="Your portfolio"
+        title="Watchlist"
+        aside={
+          hasLiveData && items.length > 0 ? (
+            <div className="text-left sm:text-right">
               <CountUp
-                value={Math.abs(totalPnL)}
-                prefix={totalPnL >= 0 ? "+$" : "-$"}
-              />{" "}
-              <span className="text-xs font-normal">
-                (<CountUp
-                  value={totalPnLPct}
-                  prefix={totalPnLPct >= 0 ? "+" : ""}
-                  suffix="%"
-                />)
-              </span>
-            </p>
+                value={totals.currentValue}
+                format={formatMoney}
+                className="font-mono text-xl font-bold text-text-primary"
+              />
+              <p
+                className={`font-mono text-sm font-semibold ${
+                  totalPnL >= 0 ? "text-positive-ink" : "text-urgent-ink"
+                }`}
+              >
+                <CountUp
+                  value={totalPnL}
+                  format={(n) => formatMoney(n, { signed: true })}
+                />{" "}
+                <span className="text-xs font-normal">
+                  (<CountUp value={totalPnLPct} format={(n) => formatPercent(n)} />)
+                </span>
+              </p>
+            </div>
+          ) : undefined
+        }
+      >
+        {items.length > 0 && (
+          <div className="mt-6">
+            <CanaryStrip holdings={canaries} />
           </div>
         )}
-      </div>
+      </Masthead>
 
       {/* ── Search ── */}
       <div className="mb-6">
@@ -785,6 +766,6 @@ export default function WatchlistPage() {
 
       {/* ── Market movers ── */}
       <MarketMovers className="mt-10" />
-    </div>
+    </AppPage>
   );
 }

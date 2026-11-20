@@ -143,7 +143,10 @@ export default function AppSidebar() {
       </div>
 
       {/* Nav links */}
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+      {/* Active item: ink text, medium weight and a 2px canary bar on the
+          sidebar edge. The 18px padding plus the 2px bar lines the icons up
+          with the logo above. */}
+      <nav className="flex-1 py-4 flex flex-col gap-1">
         {navLinks.map((link) => {
           const active =
             pathname === link.href || pathname.startsWith(link.href + "/");
@@ -152,10 +155,10 @@ export default function AppSidebar() {
               key={link.href}
               href={link.href}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
+              className={`focus-inset flex items-center gap-3 pl-[18px] pr-5 py-2.5 border-l-2 transition-colors duration-150 ${
                 active
-                  ? "bg-white shadow-card text-text-primary font-medium"
-                  : "text-text-secondary hover:bg-white/70 hover:text-text-primary"
+                  ? "border-canary text-text-primary font-medium"
+                  : "border-transparent text-text-secondary hover:text-text-primary"
               }`}
             >
               {link.icon(active)}
@@ -166,7 +169,7 @@ export default function AppSidebar() {
       </nav>
 
       {/* User info + logout */}
-      <div className="px-4 py-4 border-t border-border">
+      <div className="px-5 py-4 border-t border-border">
         {email && (
           <p
             className="font-body text-xs text-text-secondary truncate mb-3"
@@ -177,9 +180,9 @@ export default function AppSidebar() {
         )}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg font-body text-sm text-text-secondary hover:text-urgent-ink hover:bg-[#FDF2F2] transition-colors duration-150"
+          className="tap w-full flex items-center gap-3 py-2 font-body text-sm text-text-secondary hover:text-text-primary transition-colors duration-150"
         >
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
             <path
               d="M5.5 13H3a1 1 0 01-1-1V3a1 1 0 011-1h2.5M9.5 10.5L13 7.5l-3.5-3M13 7.5H5.5"
               stroke="currentColor"

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Button from "@/components/Button";
 import Navbar from "@/components/Navbar";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
 
@@ -124,12 +124,7 @@ export default function HowItWorksPage() {
         <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-text-primary mb-8">
           Ready to start watching?
         </h2>
-        <Link
-          href="/signup"
-          className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-7 py-3 rounded-lg hover:bg-canary-dark transition-colors"
-        >
-          Create your free account
-        </Link>
+        <Button href="/signup">Create your free account</Button>
         <p className="font-body text-sm text-text-secondary mt-5">
           Free forever. No credit card required.
         </p>

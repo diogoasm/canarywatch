@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 
 const STABLE_URL = "https://financialmodelingprep.com/stable";
-// Above $5 only: keeps penny stocks off the homepage. FMP's free plan has
+// Above $10 only: keeps penny and near-penny stocks off the homepage and
+// the watchlist. FMP's free plan has
 // no market cap for most of these symbols, so price is the filter.
-const MIN_PRICE = 5;
+const MIN_PRICE = 10;
 const LIST_SIZE = 8;
 // Moves beyond these are almost always reverse splits or bad data.
 const MAX_GAIN_PCT = 200;

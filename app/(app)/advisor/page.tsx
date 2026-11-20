@@ -9,6 +9,9 @@ import {
 } from "react";
 import { motion, useInView, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
+import Button from "@/components/Button";
+import { formatMoney, formatPercent } from "@/lib/format";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import CanaryStrip from "@/components/CanaryStrip";
 import { fetchQuote } from "@/lib/quotes";
@@ -79,13 +82,6 @@ const LOADING_MESSAGES = [
 ];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-
-const TWO_DECIMALS = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-
-function fmtSigned(value: number, prefix = "", suffix = ""): string {
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  return `${sign}${prefix}${Math.abs(value).toLocaleString("en-US", TWO_DECIMALS)}${suffix}`;
-}
 
 function fmtMastheadDate(date: Date): string {
   const weekday = date.toLocaleDateString("en-GB", { weekday: "long" });
@@ -167,13 +163,9 @@ function GeneratePrompt({
         Canary will review all your holdings and flag what needs your attention.
       </p>
 
-      <button
-        onClick={onGenerate}
-        disabled={!canGenerate}
-        className="tap bg-canary text-[#1A1A1A] font-playfair text-sm font-bold py-3 px-6 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        Generate My Briefing
-      </button>
+      <Button onClick={onGenerate} disabled={!canGenerate}>
+        Generate my briefing
+      </Button>
 
       {profile.plan === "free" && canGenerate && (
         <p className="font-mono text-xs text-text-secondary mt-4">
@@ -184,9 +176,9 @@ function GeneratePrompt({
       {!canGenerate && (
         <p className="font-body text-xs text-urgent-ink mt-4">
           No briefings remaining.{" "}
-          <a href="/pricing" className="tap underline">
+          <Button href="/pricing" kind="text" size="sm" className="!text-urgent-ink">
             Upgrade to Premium
-          </a>{" "}
+          </Button>{" "}
           for unlimited access.
         </p>
       )}
@@ -233,14 +225,6 @@ function GeneratingState() {
 }
 
 // ─── Briefing sections ─────────────────────────────────────────────────────
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="font-mono text-xs font-normal uppercase tracking-widest text-text-secondary mb-6">
-      {children}
-    </h2>
-  );
-}
 
 function BriefingSection({
   label,
@@ -315,26 +299,26 @@ function Snapshot({ snapshot }: { snapshot: PortfolioSnapshot }) {
     <div className="grid grid-cols-2 lg:grid-cols-4">
       <Stat
         label="Total value"
-        value={`$${snapshot.total_value.toLocaleString("en-US", TWO_DECIMALS)}`}
+        value={formatMoney(snapshot.total_value)}
         className="pr-4"
       />
       <Stat
         label="Total P&L"
-        value={fmtSigned(snapshot.total_pnl_dollars, "$")}
-        note={fmtSigned(snapshot.total_pnl_percent, "", "%")}
+        value={formatMoney(snapshot.total_pnl_dollars, { signed: true })}
+        note={formatPercent(snapshot.total_pnl_percent)}
         tone={pnlTone}
         className="pl-4 border-l border-border"
       />
       <Stat
         label="Best performer"
-        value={best ? fmtSigned(best.pnl_percent, "", "%") : "—"}
+        value={best ? formatPercent(best.pnl_percent) : "—"}
         note={best?.ticker}
         tone={best ? toneClass(best.pnl_percent) : undefined}
         className="pr-4 mt-8 lg:mt-0 lg:pl-4 lg:border-l lg:border-border"
       />
       <Stat
         label="Worst performer"
-        value={worst ? fmtSigned(worst.pnl_percent, "", "%") : "—"}
+        value={worst ? formatPercent(worst.pnl_percent) : "—"}
         note={worst?.ticker}
         tone={worst ? toneClass(worst.pnl_percent) : undefined}
         className="pl-4 mt-8 lg:mt-0 border-l border-border"
@@ -482,19 +466,21 @@ function BriefingDisplay({
             changed. Regenerate for current data.
           </p>
           {canRegenerate ? (
-            <button
+            <Button
+              kind="text"
               onClick={onRegenerate}
-              className="tap shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
+              className="shrink-0 self-start sm:self-auto"
             >
               Regenerate now
-            </button>
+            </Button>
           ) : (
-            <a
+            <Button
+              kind="text"
               href="/pricing"
-              className="tap shrink-0 self-start sm:self-auto font-body text-sm text-text-primary underline underline-offset-2 hover:text-gold-ink transition-colors"
+              className="shrink-0 self-start sm:self-auto"
             >
               Upgrade to Premium to regenerate
-            </a>
+            </Button>
           )}
         </div>
       )}
@@ -738,58 +724,48 @@ export default function AdvisorPage() {
   const creditsLeft = profile ? creditsRemaining(profile) : null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Masthead ── */}
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-x-6 gap-y-3 pb-8">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-3">
-            Morning briefing
-          </p>
-          {loading ? (
-            <div className="h-10 w-64 max-w-full bg-border animate-pulse" />
+    <AppPage>
+      <Masthead
+        label="Morning briefing"
+        title={
+          loading ? (
+            <span className="block h-10 w-64 max-w-full bg-border animate-pulse" />
           ) : (
-            <h1 className="font-display text-3xl sm:text-4xl font-bold text-text-primary leading-tight">
-              {fmtMastheadDate(
-                showBriefing ? new Date(briefing.generated_at) : new Date()
+            fmtMastheadDate(
+              showBriefing ? new Date(briefing.generated_at) : new Date()
+            )
+          )
+        }
+        aside={
+          !loading && !generating ? (
+            <div className="flex flex-col sm:items-end gap-1">
+              {showBriefing && (
+                <div className="flex items-baseline gap-4">
+                  <p className="font-mono text-xs tabular-nums text-text-secondary">
+                    Generated {fmtTime(briefing.generated_at)}
+                  </p>
+                  {canRegenerate && (
+                    <Button kind="text" size="sm" muted onClick={handleGenerate}>
+                      Regenerate
+                    </Button>
+                  )}
+                </div>
               )}
-            </h1>
-          )}
-        </div>
-
-        {!loading && !generating && (
-          <div className="flex flex-col sm:items-end gap-1 shrink-0">
-            {showBriefing && (
-              <div className="flex items-baseline gap-4">
-                <p className="font-mono text-xs tabular-nums text-text-secondary">
-                  Generated {fmtTime(briefing.generated_at)}
-                </p>
-                {canRegenerate && (
-                  <button
-                    onClick={handleGenerate}
-                    className="tap font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
-                  >
-                    Regenerate
-                  </button>
-                )}
-              </div>
-            )}
-            {creditsLeft !== null &&
-              (creditsLeft > 0 ? (
-                <p className="font-mono text-xs tabular-nums text-text-secondary">
-                  {creditsLeft} briefing{creditsLeft === 1 ? "" : "s"} remaining
-                  this month
-                </p>
-              ) : (
-                <a
-                  href="/pricing"
-                  className="tap font-body text-xs text-text-secondary underline underline-offset-2 hover:text-text-primary transition-colors"
-                >
-                  Upgrade to Premium
-                </a>
-              ))}
-          </div>
-        )}
-      </header>
+              {creditsLeft !== null &&
+                (creditsLeft > 0 ? (
+                  <p className="font-mono text-xs tabular-nums text-text-secondary">
+                    {creditsLeft} briefing{creditsLeft === 1 ? "" : "s"} remaining
+                    this month
+                  </p>
+                ) : (
+                  <Button kind="text" size="sm" muted href="/pricing" className="self-start sm:self-auto">
+                    Upgrade to Premium
+                  </Button>
+                ))}
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* ── Error ── */}
       {error && (
@@ -823,12 +799,12 @@ export default function AdvisorPage() {
       ) : (
         <p className="border-t border-border py-10 font-body text-sm text-text-secondary">
           Please{" "}
-          <a href="/login" className="tap underline">
+          <Button kind="text" href="/login">
             sign in
-          </a>{" "}
+          </Button>{" "}
           to use the AI Advisor.
         </p>
       )}
-    </div>
+    </AppPage>
   );
 }

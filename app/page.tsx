@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Button from "@/components/Button";
 import Navbar from "@/components/Navbar";
 import CanaryIcon from "@/components/CanaryIcon";
 import FlyingCanaryIntro from "@/components/FlyingCanaryIntro";
@@ -104,18 +104,10 @@ export default async function Home() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-              <Link
-                href="/signup"
-                className="btn-primary font-playfair text-sm px-6 py-2.5"
-              >
-                Get started free
-              </Link>
-              <Link
-                href="/how-it-works"
-                className="btn-outline font-playfair text-sm px-6 py-2.5"
-              >
+              <Button href="/signup">Get started free</Button>
+              <Button href="/how-it-works" kind="secondary">
                 See how it works
-              </Link>
+              </Button>
             </div>
           </div>
 
@@ -206,12 +198,7 @@ export default async function Home() {
             Don&apos;t find out the day after.
           </h2>
           <div className="flex flex-col items-start gap-4">
-            <Link
-              href="/signup"
-              className="btn-primary font-playfair text-sm px-6 py-2.5"
-            >
-              Start watching for free
-            </Link>
+            <Button href="/signup">Start watching for free</Button>
             <p className="font-mono text-xs text-[#B0B0B0]">
               Free. No card needed.
             </p>

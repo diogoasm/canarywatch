@@ -62,7 +62,8 @@ const links = [
   },
   {
     href: "/learn",
-    label: "Research guide",
+    // Short so it fits one line on phones; the sidebar says "Research guide".
+    label: "Guide",
     icon: (active: boolean) => (
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <path
@@ -107,9 +108,7 @@ export default function BottomNav() {
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-40 safe-area-pb">
-      {/* 4.5rem fits "Research guide" on two lines at phone widths; icons
-          align to the top so the labels line up whether they wrap or not. */}
-      <div className="flex items-start justify-around h-[4.5rem]">
+      <div className="flex items-center justify-around h-16">
         {links.map((link) => {
           // Same rule as the sidebar, so a subpage keeps its tab lit.
           const active =
@@ -123,7 +122,7 @@ export default function BottomNav() {
             >
               {link.icon(active)}
               <span
-                className={`font-body text-xs text-center leading-tight ${
+                className={`font-body text-xs text-center leading-tight whitespace-nowrap ${
                   active
                     ? "text-text-primary font-semibold"
                     : "text-text-secondary"

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Button from "@/components/Button";
 import CanaryIcon from "@/components/CanaryIcon";
 import Navbar from "@/components/Navbar";
 import SiteFooter from "@/components/SiteFooter";
@@ -7,9 +7,6 @@ import SiteFooter from "@/components/SiteFooter";
 export const metadata: Metadata = {
   title: "Page not found — Canary",
 };
-
-const LINK_CLASS =
-  "tap font-body text-sm text-text-primary underline underline-offset-4 hover:text-text-secondary transition-colors";
 
 export default function NotFound() {
   return (
@@ -34,12 +31,12 @@ export default function NotFound() {
           The link may be old, or the page never existed.
         </p>
         <div className="flex items-center gap-8 mt-10">
-          <Link href="/" className={LINK_CLASS}>
+          <Button href="/" kind="text">
             Back to home
-          </Link>
-          <Link href="/watchlist" className={LINK_CLASS}>
+          </Button>
+          <Button href="/watchlist" kind="text">
             Your watchlist
-          </Link>
+          </Button>
         </div>
       </main>
 

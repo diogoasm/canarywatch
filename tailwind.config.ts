@@ -15,6 +15,8 @@ const config: Config = {
         "text-secondary": "#6B6B6B",
         canary: "#F5C842",
         "canary-dark": "#D4A800",
+        // Primary button hover: a slight darkening, nothing more.
+        "canary-hover": "#EBBD35",
         urgent: "#E03B3B",
         positive: "#2D9E6B",
         // Darker versions for text. The bright ones above are for dots, bars,
@@ -24,6 +26,8 @@ const config: Config = {
         "urgent-ink": "#C42B2B",
         "gold-ink": "#86670F",
         border: "#E8E4DC",
+        // Edges of form fields: 3.3:1 on the paper (WCAG 1.4.11 asks 3:1).
+        field: "#8C877E",
       },
       fontFamily: {
         display: ["var(--font-playfair)", "Georgia", "serif"],

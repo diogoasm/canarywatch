@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import SiteFooter from "@/components/SiteFooter";
 import UpgradeButton from "@/components/UpgradeButton";
+import Button from "@/components/Button";
 
 export const metadata: Metadata = {
   title: "Pricing — Canary",
@@ -95,12 +95,9 @@ function PlanHeading({
 
 function StartFree() {
   return (
-    <Link
-      href="/signup"
-      className="btn-outline inline-block font-playfair text-sm px-6 py-3"
-    >
+    <Button href="/signup" kind="secondary">
       Start free
-    </Link>
+    </Button>
   );
 }
 

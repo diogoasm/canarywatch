@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Button from "@/components/Button";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
 import type { TraderType } from "@/types";
 
@@ -18,7 +19,7 @@ const traderOptions: {
   },
   {
     value: "active",
-    label: "Active Trader",
+    label: "Active trader",
     description: "I trade regularly and follow the markets",
   },
   {
@@ -102,21 +103,23 @@ export default function OnboardingPage() {
             How would you describe yourself as a trader?
           </legend>
 
-          <div className="flex flex-col gap-3">
+          {/* Ruled rows, not cards: the chosen one gets the same 2px canary
+              bar as the active sidebar item. */}
+          <div className="border-t border-border">
             {traderOptions.map((option) => {
               const isSelected = selected === option.value;
               return (
                 <label
                   key={option.value}
                   className={`
-                    w-full flex items-center gap-4 px-6 py-5 rounded-card text-left cursor-pointer
-                    border-2 transition-all duration-150 bg-white
+                    w-full flex items-center gap-4 pl-5 pr-4 py-5 text-left cursor-pointer
+                    border-b border-border border-l-2 transition-colors duration-150
                     has-[:focus-visible]:outline has-[:focus-visible]:outline-2
-                    has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#1A1A1A]
+                    has-[:focus-visible]:-outline-offset-2 has-[:focus-visible]:outline-[#1A1A1A]
                     ${
                       isSelected
-                        ? "border-canary shadow-card-canary"
-                        : "border-border hover:border-[#D4C89A] shadow-card"
+                        ? "border-l-canary bg-canary/10"
+                        : "border-l-transparent hover:bg-[#1A1A1A]/[0.03]"
                     }
                   `}
                 >
@@ -139,10 +142,10 @@ export default function OnboardingPage() {
                   {/* Selection indicator */}
                   <span aria-hidden="true" className="ml-auto shrink-0">
                     <span
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
                         isSelected
-                          ? "border-canary bg-canary"
-                          : "border-border bg-white"
+                          ? "border-[#1A1A1A] bg-canary"
+                          : "border-field bg-transparent"
                       }`}
                     >
                       {isSelected && (
@@ -172,19 +175,16 @@ export default function OnboardingPage() {
 
         {/* Actions */}
         <div className="flex flex-col items-center gap-3 mt-8">
-          <button
+          <Button
             onClick={handleContinue}
             disabled={!selected || saving}
-            className="btn-primary w-full py-3 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full"
           >
-            {saving ? "Saving…" : "Continue to my Watchlist"}
-          </button>
-          <button
-            onClick={handleSkip}
-            className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
-          >
+            {saving ? "Saving…" : "Continue to my watchlist"}
+          </Button>
+          <Button kind="text" muted onClick={handleSkip}>
             Skip for now
-          </button>
+          </Button>
         </div>
       </div>
     </div>

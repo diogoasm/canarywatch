@@ -63,7 +63,7 @@ export default function StockSearch({
   return (
     <div ref={wrapperRef} className="relative">
       <div className="relative">
-        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none">
           {searching ? (
             <svg
               className="animate-spin w-4 h-4"
@@ -103,7 +103,7 @@ export default function StockSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          className="w-full pl-10 pr-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors shadow-card"
+          className="w-full pl-7 pr-2 py-3 bg-transparent border-0 border-b border-field rounded-none font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
         />
       </div>
 

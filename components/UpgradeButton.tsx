@@ -1,5 +1,7 @@
 "use client";
 
+import Button from "@/components/Button";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -60,17 +62,19 @@ export default function UpgradeButton({
   if (variant === "link") {
     return (
       <span>
-        <button
+        <Button
+          kind="text"
+          muted
           onClick={handleUpgrade}
           disabled={loading}
-          className={`tap font-body text-sm underline underline-offset-2 transition-colors disabled:opacity-50 ${
+          className={
             dark
-              ? "text-[#B0B0B0] hover:text-canary"
-              : "text-text-secondary hover:text-text-primary"
-          }`}
+              ? "!text-[#B0B0B0] !decoration-[#B0B0B0]/40 hover:!text-white hover:!decoration-white"
+              : ""
+          }
         >
-          {loading ? "Redirecting…" : "or upgrade annually — €79/year"}
-        </button>
+          {loading ? "Redirecting…" : "Or upgrade annually for €79 a year"}
+        </Button>
         {error && (
           <span className="block font-body text-xs text-urgent-ink mt-2">
             {error}
@@ -82,13 +86,9 @@ export default function UpgradeButton({
 
   return (
     <span>
-      <button
-        onClick={handleUpgrade}
-        disabled={loading}
-        className="tap inline-block bg-canary text-[#1A1A1A] font-playfair text-sm font-bold px-6 py-3 rounded-lg hover:bg-canary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-      >
+      <Button onClick={handleUpgrade} disabled={loading}>
         {loading ? "Redirecting to checkout…" : "Upgrade"}
-      </button>
+      </Button>
       {error && (
         <span className="block font-body text-xs text-urgent-ink mt-2">{error}</span>
       )}

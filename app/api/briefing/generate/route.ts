@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { daysUntil } from "@/lib/utils";
+import { formatMoney, formatPercent } from "@/lib/format";
 import { pickNextEarnings } from "@/lib/earnings";
 import {
   getEarningsCalendar as getFmpEarnings,
@@ -352,10 +353,10 @@ export async function POST() {
   const stockLines = stockData
     .map((s) => {
       const price =
-        s.current_price !== null ? `$${s.current_price.toFixed(2)}` : "N/A";
+        s.current_price !== null ? formatMoney(s.current_price) : "N/A";
       const pnlStr =
         s.pnl_dollars !== null && s.pnl_percent !== null
-          ? `${s.pnl_dollars >= 0 ? "+" : ""}$${Math.abs(s.pnl_dollars).toFixed(2)} (${s.pnl_percent >= 0 ? "+" : ""}${s.pnl_percent.toFixed(2)}%)`
+          ? `${formatMoney(s.pnl_dollars, { signed: true })} (${formatPercent(s.pnl_percent)})`
           : "N/A";
 
       // Earnings line
@@ -419,7 +420,7 @@ export async function POST() {
 
       const lines = [
         `${s.ticker} - ${s.company_name}`,
-        `Shares: ${s.shares} | Avg Buy: $${Number(s.avg_buy_price).toFixed(2)} | Current: ${price} | P&L: ${pnlStr}`,
+        `Shares: ${s.shares} | Avg Buy: ${formatMoney(Number(s.avg_buy_price))} | Current: ${price} | P&L: ${pnlStr}`,
         metricsStr ? `Fundamentals: ${metricsStr}` : null,
         `Next Earnings: ${earningsStr}`,
         `Last Quarter: ${lastQStr}`,
@@ -440,7 +441,7 @@ Analyse this portfolio and give me a detailed briefing using all the data provid
 
 ${stockLines}
 
-Total Portfolio Value: $${currentValue.toFixed(2)} | Total P&L: ${totalPnlDollars >= 0 ? "+" : ""}$${Math.abs(totalPnlDollars).toFixed(2)} (${totalPnlPercent >= 0 ? "+" : ""}${totalPnlPercent.toFixed(2)}%)
+Total Portfolio Value: ${formatMoney(currentValue)} | Total P&L: ${formatMoney(totalPnlDollars, { signed: true })} (${formatPercent(totalPnlPercent)})
 
 Return ONLY a valid JSON object with exactly these keys:
 - "canary_warnings": array of objects — each {"message": string, "severity": "red"|"yellow"|"green"} — red for urgent risks (earnings imminent, big losses, no coverage), yellow for moderate watch items, green for positive signals (empty array if truly none)

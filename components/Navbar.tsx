@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Button from "@/components/Button";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
@@ -150,15 +151,12 @@ export default function Navbar() {
             >
               {user ? (
                 <>
-                  <Link
-                    href="/watchlist"
-                    className="btn-primary font-playfair text-xs px-3 py-1.5"
-                  >
-                    My Portfolio →
-                  </Link>
+                  <Button href="/watchlist" size="sm">
+                    My portfolio
+                  </Button>
                   <Link
                     href="/settings"
-                    className="tap w-9 h-9 rounded-full bg-canary text-[#1A1A1A] font-body text-sm font-bold flex items-center justify-center hover:bg-canary-dark transition-colors"
+                    className="tap w-9 h-9 rounded-full bg-canary text-[#1A1A1A] font-body text-sm font-bold flex items-center justify-center hover:bg-canary-hover transition-colors"
                     title={user.email ?? "Settings"}
                     aria-label="Account settings"
                   >
@@ -171,14 +169,11 @@ export default function Navbar() {
                     href="/login"
                     className="tap font-playfair text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
                   >
-                    Login
+                    Log in
                   </Link>
-                  <Link
-                    href="/signup"
-                    className="btn-primary font-playfair text-sm px-3 py-1.5"
-                  >
-                    Get Started
-                  </Link>
+                  <Button href="/signup" size="sm">
+                    Get started
+                  </Button>
                 </>
               )}
             </div>
@@ -213,29 +208,30 @@ export default function Navbar() {
             {authChecked && (
               <div className="flex flex-col gap-3 px-6 py-4">
                 {user ? (
-                  <Link
+                  <Button
                     href="/watchlist"
                     onClick={() => setMenuOpen(false)}
-                    className="btn-primary font-playfair text-sm text-center w-full"
+                    className="w-full"
                   >
-                    My Portfolio →
-                  </Link>
+                    My portfolio
+                  </Button>
                 ) : (
                   <>
-                    <Link
+                    <Button
                       href="/login"
+                      kind="secondary"
                       onClick={() => setMenuOpen(false)}
-                      className="btn-outline font-playfair text-sm text-center w-full"
+                      className="w-full"
                     >
-                      Login
-                    </Link>
-                    <Link
+                      Log in
+                    </Button>
+                    <Button
                       href="/signup"
                       onClick={() => setMenuOpen(false)}
-                      className="btn-primary font-playfair text-sm text-center w-full"
+                      className="w-full"
                     >
-                      Get Started
-                    </Link>
+                      Get started
+                    </Button>
                   </>
                 )}
               </div>

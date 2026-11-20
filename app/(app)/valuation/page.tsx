@@ -4,6 +4,8 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import StockSearch from "@/components/StockSearch";
 import { createClient } from "@/lib/supabase/client";
 import type { StockSearchResult } from "@/types";
+import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
+import { formatMoney, formatMoneyCompact } from "@/lib/format";
 
 // ─── Types (mirrors /api/valuation response) ───────────────────────────────
 
@@ -37,19 +39,6 @@ interface ValuationData {
 const REQUIRED_RETURN = 0.1; // r — standard market assumption
 
 // ─── Formatting helpers ────────────────────────────────────────────────────
-
-function fmtMoney(n: number): string {
-  return `$${n.toFixed(2)}`;
-}
-
-function fmtBig(n: number): string {
-  const abs = Math.abs(n);
-  const sign = n < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
-  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(0)}M`;
-  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`;
-  return `${sign}$${abs.toFixed(0)}`;
-}
 
 function fmtQuarter(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -93,36 +82,39 @@ function CollapsibleCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="card overflow-visible">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-6 py-4 text-left"
-        aria-expanded={open}
-      >
-        <span className="font-display text-base font-bold text-text-primary">
-          {title}
-          {tooltip && <InfoTip text={tooltip} />}
-        </span>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 14 14"
-          fill="none"
-          className={`shrink-0 text-text-secondary transition-transform duration-200 ${
-            open ? "rotate-180" : ""
-          }`}
+    <section className="border-t border-border">
+      <h2>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-4 py-6 text-left focus-inset"
+          aria-expanded={open}
         >
-          <path
-            d="M2.5 5l4.5 4.5L11.5 5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-      {open && <div className="px-6 pb-6">{children}</div>}
-    </div>
+          <span className="font-display text-xl font-bold text-text-primary">
+            {title}
+            {tooltip && <InfoTip text={tooltip} />}
+          </span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+            className={`shrink-0 text-text-secondary transition-transform duration-200 ${
+              open ? "rotate-180" : ""
+            }`}
+          >
+            <path
+              d="M2.5 5l4.5 4.5L11.5 5"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </h2>
+      {open && <div className="pb-12">{children}</div>}
+    </section>
   );
 }
 
@@ -163,7 +155,7 @@ function PremiumDiscountRow({
   const above = pct >= 0;
   return (
     <ValueRow
-      label="Premium / Discount to Intrinsic Value"
+      label="Premium or discount to intrinsic value"
       value={`${Math.abs(pct).toFixed(1)}% ${above ? "above" : "below"} intrinsic value`}
       valueClass={above ? "text-urgent-ink" : "text-positive-ink"}
     />
@@ -220,7 +212,7 @@ function FcfChart({ quarters }: { quarters: FcfQuarter[] }) {
               fontSize="11"
               fontFamily="var(--font-dm-mono), monospace"
             >
-              {fmtBig(q.free_cash_flow)}
+              {formatMoneyCompact(q.free_cash_flow)}
             </text>
           </g>
         );
@@ -236,16 +228,16 @@ function DcfSection({ data }: { data: ValuationData }) {
 
   if (!dcf.applicable || dcf.intrinsic_value === null) {
     return (
-      <div className="card p-6 bg-background/60">
-        <h3 className="font-display text-base font-bold text-text-secondary mb-2">
-          DCF Not Applicable
-        </h3>
+      <section className="border-t border-border pt-6 pb-12">
+        <h2 className="font-display text-xl font-bold text-text-secondary mb-2">
+          DCF not applicable
+        </h2>
         <p className="font-body text-sm text-text-secondary leading-relaxed">
           {data.ticker} does not have positive free cash flow history required
           for a meaningful DCF calculation. This is common for early-stage or
           unprofitable companies.
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -257,13 +249,13 @@ function DcfSection({ data }: { data: ValuationData }) {
       <div className="mb-4">
         {data.current_price !== null && (
           <ValueRow
-            label="Current Market Price"
-            value={fmtMoney(data.current_price)}
+            label="Current market price"
+            value={formatMoney(data.current_price)}
           />
         )}
         <ValueRow
-          label="DCF Intrinsic Value"
-          value={fmtMoney(dcf.intrinsic_value)}
+          label="DCF intrinsic value"
+          value={formatMoney(dcf.intrinsic_value)}
           tooltip="This is what the model estimates the stock is worth based on projected future cash flows discounted back to today. This is a model output, not a fact — it depends heavily on growth assumptions which may not reflect reality."
         />
         {data.current_price !== null && (
@@ -284,11 +276,11 @@ function DcfSection({ data }: { data: ValuationData }) {
             <>
               Our calculation:{" "}
               <span className="font-mono text-text-primary">
-                {fmtMoney(dcf.intrinsic_value)}
+                {formatMoney(dcf.intrinsic_value)}
               </span>{" "}
               | FMP estimate:{" "}
               <span className="font-mono text-text-primary">
-                {fmtMoney(dcf.fmp_estimate)}
+                {formatMoney(dcf.fmp_estimate)}
               </span>
               <br />
             </>
@@ -303,10 +295,10 @@ function DcfSection({ data }: { data: ValuationData }) {
 
       {data.fcf_quarters.length > 0 && (
         <div className="mb-5">
-          <p className="font-body text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">
-            Free Cash Flow Trend (last 4 quarters)
+          <SectionLabel as="h3" className="text-text-secondary !mb-3">
+            Free cash flow, last 4 quarters
             <InfoTip text="Free cash flow is the actual cash a company generates after capital expenditures. Growing FCF is generally a positive sign." />
-          </p>
+          </SectionLabel>
           <FcfChart quarters={data.fcf_quarters} />
         </div>
       )}
@@ -325,16 +317,16 @@ function DcfSection({ data }: { data: ValuationData }) {
 function DdmSection({ data }: { data: ValuationData }) {
   if (!data.pays_dividend || data.annual_dividend === null) {
     return (
-      <div className="card p-6 bg-background/60">
-        <h3 className="font-display text-base font-bold text-text-secondary mb-2">
-          DDM Not Applicable
-        </h3>
+      <section className="border-t border-border pt-6 pb-12">
+        <h2 className="font-display text-xl font-bold text-text-secondary mb-2">
+          DDM not applicable
+        </h2>
         <p className="font-body text-sm text-text-secondary leading-relaxed">
           The Dividend Discount Model only applies to stocks that pay regular
           dividends. {data.ticker} does not currently pay a dividend, so DDM
           cannot be used to estimate its value.
         </p>
-      </div>
+      </section>
     );
   }
 
@@ -350,15 +342,15 @@ function DdmSection({ data }: { data: ValuationData }) {
       tooltip="DDM values a stock based on the present value of all future dividend payments. Best for stable, mature companies with consistent dividend growth."
     >
       {/* Gordon Growth Model formula */}
-      <div className="bg-background rounded-lg p-5 mb-5">
-        <p className="font-mono text-sm text-text-primary text-center mb-4">
+      <div className="border-l-2 border-border pl-5 py-1 mb-6">
+        <p className="font-mono text-sm text-text-primary mb-4">
           Intrinsic Value = D₁ / (r − g)
         </p>
         <div className="flex flex-col gap-2">
           <p className="font-body text-sm text-text-secondary">
             <span className="font-mono font-bold text-text-primary">D₁</span> ={" "}
             Next year&apos;s expected dividend:{" "}
-            <span className="font-mono text-text-primary">{fmtMoney(d1)}</span>
+            <span className="font-mono text-text-primary">{formatMoney(d1)}</span>
           </p>
           <p className="font-body text-sm text-text-secondary">
             <span className="font-mono font-bold text-text-primary">r</span> ={" "}
@@ -378,9 +370,9 @@ function DdmSection({ data }: { data: ValuationData }) {
           </p>
           {intrinsic !== null && (
             <p className="font-body text-sm text-text-primary pt-2 border-t border-border mt-1">
-              = Intrinsic Value:{" "}
+              = Intrinsic value:{" "}
               <span className="font-mono font-bold">
-                {fmtMoney(intrinsic)} per share
+                {formatMoney(intrinsic)} per share
               </span>
             </p>
           )}
@@ -399,12 +391,12 @@ function DdmSection({ data }: { data: ValuationData }) {
       {intrinsic !== null && data.current_price !== null && (
         <div>
           <ValueRow
-            label="Current Market Price"
-            value={fmtMoney(data.current_price)}
+            label="Current market price"
+            value={formatMoney(data.current_price)}
           />
           <ValueRow
-            label="DDM Intrinsic Value"
-            value={fmtMoney(intrinsic)}
+            label="DDM intrinsic value"
+            value={formatMoney(intrinsic)}
           />
           <PremiumDiscountRow price={data.current_price} intrinsic={intrinsic} />
         </div>
@@ -417,14 +409,14 @@ function DdmSection({ data }: { data: ValuationData }) {
 
 function ValuationSkeleton() {
   return (
-    <div className="flex flex-col gap-5">
+    <div aria-hidden="true">
       {[1, 2].map((i) => (
-        <div key={i} className="card p-6 animate-pulse">
-          <div className="h-4 bg-border rounded w-56 mb-5" />
-          <div className="h-3 bg-background rounded w-full mb-2.5" />
-          <div className="h-3 bg-background rounded w-full mb-2.5" />
-          <div className="h-3 bg-background rounded w-2/3 mb-5" />
-          <div className="h-20 bg-background rounded" />
+        <div key={i} className="border-t border-border pt-6 pb-12 animate-pulse">
+          <div className="h-5 bg-border w-56 mb-8" />
+          <div className="h-3 bg-border/60 w-full mb-4" />
+          <div className="h-3 bg-border/60 w-full mb-4" />
+          <div className="h-3 bg-border/60 w-2/3 mb-8" />
+          <div className="h-20 bg-border/40" />
         </div>
       ))}
     </div>
@@ -558,64 +550,62 @@ export default function ValuationPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
-      {/* ── Header ── */}
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-text-primary">
-          Valuation Tools
-        </h1>
-        <p className="font-body text-sm text-text-secondary mt-1">
-          Understand what a stock is worth — and decide for yourself.
-        </p>
-      </div>
+    <AppPage>
+      <Masthead
+        label="Valuation"
+        title="What is it worth?"
+        description="Search any stock, or pick one you hold. The maths is shown; the judgement is yours."
+      />
 
-      {/* ── Search ── */}
-      <div className="mb-8">
-        <StockSearch onSelect={handleSelect} />
-        <QuickPicks
-          holdings={holdings}
-          selectedTicker={selected?.ticker ?? null}
-          onPick={handleSelect}
-        />
-        {selected && !loading && (
-          <p className="font-body text-xs text-text-secondary mt-2">
-            Showing valuation for{" "}
-            <span className="font-mono font-bold text-text-primary">
-              {selected.ticker}
-            </span>{" "}
-            — {selected.company_name}
-          </p>
-        )}
-      </div>
-
-      {/* ── Content ── */}
-      {loading ? (
-        <ValuationSkeleton />
-      ) : error ? (
-        <div className="card p-6 bg-background/60">
-          <p className="font-body text-sm text-text-secondary">{error}</p>
-        </div>
-      ) : data ? (
-        data.has_data ? (
-          <div className="flex flex-col gap-5">
-            <DcfSection data={data} />
-            <DdmSection data={data} />
-            <p className="font-body text-xs text-text-secondary text-center leading-relaxed px-4">
-              These tools are educational. They show you the maths professional
-              investors use — the judgment is yours. Not financial advice.
+      {/* Label-and-value rows read badly at full width, so the tools keep a
+          narrower column on the shared left edge. */}
+      <div className="max-w-2xl">
+        {/* ── Search ── */}
+        <div className="pb-10">
+          <StockSearch onSelect={handleSelect} />
+          <QuickPicks
+            holdings={holdings}
+            selectedTicker={selected?.ticker ?? null}
+            onPick={handleSelect}
+          />
+          {selected && !loading && (
+            <p className="font-body text-xs text-text-secondary mt-2">
+              Showing valuation for{" "}
+              <span className="font-mono font-bold text-text-primary">
+                {selected.ticker}
+              </span>{" "}
+              — {selected.company_name}
             </p>
-          </div>
-        ) : (
-          <div className="card p-6 bg-background/60">
-            <p className="font-body text-sm text-text-secondary leading-relaxed">
+          )}
+        </div>
+
+        {/* ── Content ── */}
+        {loading ? (
+          <ValuationSkeleton />
+        ) : error ? (
+          <p role="alert" className="border-t border-border py-6 font-body text-sm text-urgent-ink">
+            {error}
+          </p>
+        ) : data ? (
+          data.has_data ? (
+            <div>
+              <DcfSection data={data} />
+              <DdmSection data={data} />
+              <p className="border-t border-border pt-6 font-body text-xs text-text-secondary leading-relaxed">
+                These tools are educational. They show you the maths professional
+                investors use — the judgment is yours. Not financial advice.
+              </p>
+            </div>
+          ) : (
+            <p className="border-t border-border py-6 font-body text-sm text-text-secondary leading-relaxed">
               Data unavailable:{" "}
               {data.unavailable_reason ??
                 "no valuation data returned for this ticker"}
               .
             </p>
-          </div>
-        )
-      ) : null}
-    </div>
+          )
+        ) : null}
+      </div>
+    </AppPage>
   );
 }

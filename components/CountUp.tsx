@@ -5,23 +5,16 @@ import { useReducedMotion } from "framer-motion";
 
 interface CountUpProps {
   value: number;
+  /** Turns the in-between numbers into text, e.g. formatMoney. */
+  format: (n: number) => string;
   duration?: number;
-  decimals?: number;
-  prefix?: string;
-  suffix?: string;
   className?: string;
-}
-
-function formatNumber(n: number, decimals: number) {
-  return n.toFixed(decimals);
 }
 
 export default function CountUp({
   value,
+  format,
   duration = 1200,
-  decimals = 2,
-  prefix = "",
-  suffix = "",
   className,
 }: CountUpProps) {
   const reduce = useReducedMotion();
@@ -61,10 +54,6 @@ export default function CountUp({
   }, [value, duration, reduce]);
 
   return (
-    <span className={className}>
-      {prefix}
-      {formatNumber(display, decimals)}
-      {suffix}
-    </span>
+    <span className={className}>{format(display)}</span>
   );
 }

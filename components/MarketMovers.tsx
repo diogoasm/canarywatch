@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
+import { formatMoney, formatPercent } from "@/lib/format";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -40,17 +41,6 @@ const COLUMNS =
   "grid grid-cols-[1fr_6rem_6rem] sm:grid-cols-[4.5rem_minmax(0,1fr)_5.5rem_5rem_5.5rem] gap-x-3";
 
 // ─── Formatting ────────────────────────────────────────────────────────────
-
-const TWO_DECIMALS = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
-
-function formatPrice(price: number): string {
-  return `$${price.toLocaleString("en-US", TWO_DECIMALS)}`;
-}
-
-function formatSigned(value: number, suffix = ""): string {
-  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  return `${sign}${Math.abs(value).toLocaleString("en-US", TWO_DECIMALS)}${suffix}`;
-}
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -128,17 +118,17 @@ function MoverRow({ mover, index }: { mover: Mover; index: number }) {
           {mover.name}
         </span>
         <span className="font-mono text-[13px] tabular-nums text-right text-text-primary">
-          {formatPrice(mover.price)}
+          {formatMoney(mover.price)}
         </span>
         <span
           className={`hidden sm:block font-mono text-[13px] tabular-nums text-right ${tone}`}
         >
-          {formatSigned(mover.change)}
+          {formatMoney(mover.change, { signed: true })}
         </span>
         <span
           className={`font-mono text-[13px] tabular-nums text-right ${tone}`}
         >
-          {formatSigned(mover.changesPercentage, "%")}
+          {formatPercent(mover.changesPercentage)}
         </span>
       </a>
     </motion.li>

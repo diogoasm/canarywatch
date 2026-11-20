@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Button from "@/components/Button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
@@ -66,7 +67,8 @@ function LoginForm() {
         </span>
       </Link>
 
-      <div className="card w-full max-w-md p-10">
+      {/* The form sits on the paper itself; no card. */}
+      <div className="w-full max-w-sm">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-text-primary mb-2">
             Welcome back
@@ -92,7 +94,7 @@ function LoginForm() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -107,14 +109,16 @@ function LoginForm() {
               >
                 Password
               </label>
-              <button
-                type="button"
+              <Button
+                kind="text"
+                size="sm"
+                muted
                 onClick={handleForgotPassword}
                 disabled={resetLoading}
-                className="inline-flex items-end min-h-[44px] font-body text-xs text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                className="!items-end min-h-[44px]"
               >
                 {resetLoading ? "Sending…" : "Forgot password?"}
-              </button>
+              </Button>
             </div>
             <input
               id="password"
@@ -124,7 +128,7 @@ function LoginForm() {
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-border rounded-lg font-body text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -140,23 +144,16 @@ function LoginForm() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary w-full py-3 text-sm disabled:opacity-60 disabled:cursor-not-allowed mt-1"
-          >
-            {loading ? "Logging in…" : "Log In"}
-          </button>
+          <Button type="submit" disabled={loading} className="w-full mt-1">
+            {loading ? "Logging in…" : "Log in"}
+          </Button>
         </form>
 
-        <p className="font-body text-sm text-text-secondary text-center mt-6">
+        <p className="font-body text-sm text-text-secondary text-center mt-8 pt-6 border-t border-border">
           Don&apos;t have an account?{" "}
-          <Link
-            href="/signup"
-            className="tap text-text-primary font-medium hover:underline"
-          >
+          <Button href="/signup" kind="text">
             Get started free
-          </Link>
+          </Button>
         </p>
       </div>
     </div>

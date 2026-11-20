@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { AppPage, Masthead } from "@/components/AppPage";
+import Button from "@/components/Button";
 
 // ─── Building blocks ───────────────────────────────────────────────────────
 
@@ -105,21 +106,18 @@ function ChecklistItem({ children }: { children: React.ReactNode }) {
 
 export default function LearnPage() {
   return (
-    <div className="px-4 sm:px-6 py-8">
-      <article className="max-w-[680px] mx-auto">
-        {/* ── Header ── */}
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-text-primary">
-            How to Research a Stock
-          </h1>
-          <p className="font-body text-sm text-text-secondary mt-1">
-            Canary flags what to watch. This teaches you what to do about it.
-          </p>
-        </div>
-
-        <div className="divide-y divide-border">
+    <AppPage>
+      <Masthead
+        label="Research guide"
+        title="How to research a stock"
+        description="Canary flags what to watch. This teaches you what to do about it."
+      />
+      {/* The masthead shares the app's left edge; the article keeps a
+          narrower reading column under it. */}
+      <article className="max-w-[680px]">
+        <div className="border-t border-border pt-10 divide-y divide-border">
           {/* ── Step 1: Earnings report ── */}
-          <Step label="Step 1" title="Read the Earnings Report">
+          <Step label="Step 1" title="Read the earnings report">
             <div className={BODY}>
               <p>
                 Every quarter, public companies report three things that move
@@ -189,7 +187,7 @@ export default function LearnPage() {
           </Step>
 
           {/* ── Step 3: Analyst coverage ── */}
-          <Step label="Step 3" title="What Do the Analysts Think?">
+          <Step label="Step 3" title="What do the analysts think?">
             <div className={BODY}>
               <p>
                 Professional analysts publish <strong>price targets</strong>{" "}
@@ -218,7 +216,7 @@ export default function LearnPage() {
           </Step>
 
           {/* ── Step 4: Valuation tools ── */}
-          <Step label="Step 4" title="Run the Numbers Yourself">
+          <Step label="Step 4" title="Run the numbers yourself">
             <div className={BODY}>
               <p>
                 <strong>DCF (Discounted Cash Flow)</strong> estimates what a
@@ -236,19 +234,16 @@ export default function LearnPage() {
                 No model is perfect. Use these as a sanity check, not a verdict.
               </p>
             </div>
-            <Link
-              href="/valuation"
-              className="tap inline-block bg-canary text-[#1A1A1A] font-body text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-canary-dark transition-colors mt-5"
-            >
-              Try the Valuation Tool →
-            </Link>
+            <Button href="/valuation" className="mt-6">
+              Try the valuation tool
+            </Button>
           </Step>
 
           {/* ── Step 5: Pre-trade checklist ── */}
           <Step
-            label="Before You Trade"
-            labelColor="#E03B3B"
-            title="Ask Yourself These Questions"
+            label="Before you trade"
+            labelColor="#C42B2B"
+            title="Ask yourself these questions"
           >
             <ul className="flex flex-col gap-3.5">
               <ChecklistItem>
@@ -275,12 +270,12 @@ export default function LearnPage() {
         </div>
 
         {/* ── Footer ── */}
-        <p className="font-body text-xs italic text-text-secondary text-center leading-relaxed mt-10 px-4">
+        <p className="border-t border-border pt-6 mt-10 font-body text-xs text-text-secondary leading-relaxed">
           This guide is for educational purposes only and does not constitute
           financial advice. Always do your own research and consider consulting a
           financial advisor.
         </p>
       </article>
-    </div>
+    </AppPage>
   );
 }

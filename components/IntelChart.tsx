@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useInView, useReducedMotion } from "framer-motion";
+import { formatMoney } from "@/lib/format";
 
 export interface DailyClose {
   date: string;
@@ -117,8 +118,8 @@ export default function IntelChart({ closes }: { closes: DailyClose[] }) {
   if (!story) return null;
 
   const { bought, sold, earnings, peak, mayHigh } = story;
-  const peakPrice = `$${peak.close.toFixed(2)}`;
-  const mayLabel = `$${Math.round(mayHigh.close)} by ${formatDay(mayHigh.date)}`;
+  const peakPrice = formatMoney(peak.close);
+  const mayLabel = `${formatMoney(mayHigh.close)} by ${formatDay(mayHigh.date)}`;
   const visible = drawn || Boolean(reduce);
 
   const legend = [

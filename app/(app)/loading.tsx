@@ -9,7 +9,7 @@ export default function Loading() {
   return (
     <div
       role="status"
-      className="flex flex-col items-center justify-center gap-4 min-h-[calc(100vh-4.5rem)] md:min-h-screen"
+      className="flex flex-col items-center justify-center gap-4 min-h-[calc(100vh-4rem)] md:min-h-screen"
     >
       <motion.div
         aria-hidden="true"
