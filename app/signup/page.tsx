@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
+import { reportError } from "@/lib/errors";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
@@ -43,7 +44,17 @@ export default function SignupPage() {
     setLoading(false);
 
     if (signupError) {
-      setError(signupError.message);
+      // Supabase's wording is technical; the one case people can act on
+      // (an existing account) gets its own sentence.
+      setError(
+        /already (registered|exists)/i.test(signupError.message)
+          ? "There's already an account with this email. Log in instead."
+          : reportError(
+              "signup",
+              signupError,
+              "Couldn't create your account. Check the email address and try again in a moment."
+            )
+      );
       return;
     }
 
@@ -117,7 +128,7 @@ export default function SignupPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -136,7 +147,7 @@ export default function SignupPage() {
               placeholder="Min. 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -155,12 +166,12 @@ export default function SignupPage() {
               placeholder="Repeat your password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
           {error && (
-            <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
+            <p role="alert" className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
               {error}
             </p>
           )}

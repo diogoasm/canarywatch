@@ -1,66 +1,125 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import CanaryIcon from "@/components/CanaryIcon";
+import { getCanaryLabel } from "@/lib/utils";
 import type { CanaryStatus } from "@/types";
 
-// Gap between the icon and the tooltip, plus a little room at the page edge.
-const TOOLTIP_MARGIN = 20;
+// Gap between the icon and the note, plus a little room at the page edge.
+const NOTE_MARGIN = 20;
 
-export function CanaryWithTooltip({
+/**
+ * A canary that explains itself. The icon is a button: click, tap, Enter or
+ * Space opens the reason beside it, and Escape, a second press or a press
+ * anywhere else closes it. Hovering with a mouse previews it too. The note is
+ * a live region, so a screen reader reads it out when it opens.
+ */
+export function CanaryToggletip({
+  ticker,
   status,
-  tooltip,
+  reason,
   size = 20,
 }: {
+  ticker: string;
   status: CanaryStatus;
-  tooltip: string;
+  reason: string;
   size?: number;
 }) {
+  const noteId = useId();
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(false);
   const [placement, setPlacement] = useState({
     flip: false,
     maxWidth: undefined as number | undefined,
   });
 
-  // A canary can sit anywhere in the strip, so the tooltip opens towards
-  // whichever side has room instead of running off the edge of the page.
-  function place(event: React.MouseEvent<HTMLDivElement>) {
-    const icon = event.currentTarget.getBoundingClientRect();
-    const page = event.currentTarget.closest("main")?.getBoundingClientRect();
-    if (!page) return;
+  // A canary can sit anywhere on the page, so the note opens towards
+  // whichever side has room instead of running off the edge.
+  function place() {
+    const el = wrapRef.current;
+    if (!el) return;
+    const icon = el.getBoundingClientRect();
+    const page =
+      el.closest("main")?.getBoundingClientRect() ??
+      document.documentElement.getBoundingClientRect();
     const roomLeft = icon.left - page.left;
     const roomRight = page.right - icon.right;
     setPlacement({
       flip: roomLeft > roomRight,
-      maxWidth: Math.max(roomLeft, roomRight) - TOOLTIP_MARGIN,
+      maxWidth: Math.max(roomLeft, roomRight) - NOTE_MARGIN,
     });
   }
 
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const visible = open || hover;
+
   return (
-    <div
-      className="relative group inline-flex items-center"
-      onMouseEnter={place}
+    <span
+      ref={wrapRef}
+      className="relative inline-flex items-center"
+      onPointerEnter={(e) => {
+        if (e.pointerType !== "mouse") return;
+        place();
+        setHover(true);
+      }}
+      onPointerLeave={() => setHover(false)}
     >
-      <CanaryIcon status={status} size={size} />
-      <div
-        className={`absolute top-1/2 -translate-y-1/2 z-20 pointer-events-none ${
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={noteId}
+        aria-label={`${ticker}: ${getCanaryLabel(status)}`}
+        onClick={() => {
+          place();
+          setOpen((o) => !o);
+        }}
+        className="tap inline-flex items-center justify-center rounded-full"
+      >
+        <CanaryIcon status={status} size={size} />
+      </button>
+      <span
+        className={`absolute top-1/2 -translate-y-1/2 z-20 ${
           placement.flip ? "right-full mr-3" : "left-full ml-3"
         }`}
       >
-        <div
-          className="hidden group-hover:block w-max bg-[#1A1A1A] text-white font-body text-xs rounded-md px-3 py-1.5 shadow-xl"
-          style={{ maxWidth: placement.maxWidth }}
-        >
-          <div
-            className={`absolute top-1/2 -translate-y-1/2 border-4 border-transparent ${
-              placement.flip
-                ? "left-full border-l-[#1A1A1A]"
-                : "right-full border-r-[#1A1A1A]"
-            }`}
-          />
-          {tooltip}
-        </div>
-      </div>
-    </div>
+        {/* Always rendered so the live region exists before it changes. */}
+        <span id={noteId} role="status" aria-live="polite">
+          {visible && (
+            <span
+              className="relative block w-max bg-[#1A1A1A] text-white font-body text-xs rounded-md px-3 py-1.5 shadow-xl"
+              style={{ maxWidth: placement.maxWidth }}
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute top-1/2 -translate-y-1/2 border-4 border-transparent ${
+                  placement.flip
+                    ? "left-full border-l-[#1A1A1A]"
+                    : "right-full border-r-[#1A1A1A]"
+                }`}
+              />
+              {/* Read out only when opened on purpose, not on mouse hover. */}
+              <span aria-hidden={!open}>{reason}</span>
+            </span>
+          )}
+        </span>
+      </span>
+    </span>
   );
 }
 
@@ -82,15 +141,16 @@ export default function CanaryStrip({
           className="flex flex-col items-center gap-2 min-w-[3rem]"
         >
           {holding.tooltip ? (
-            <CanaryWithTooltip
+            <CanaryToggletip
+              ticker={holding.ticker}
               status={holding.status}
-              tooltip={holding.tooltip}
+              reason={holding.tooltip}
               size={28}
             />
           ) : (
             <CanaryIcon status={holding.status} size={28} />
           )}
-          <span className="font-mono text-[11px] text-text-primary">
+          <span aria-hidden={Boolean(holding.tooltip)} className="font-mono text-[11px] text-text-primary">
             {holding.ticker}
           </span>
         </li>

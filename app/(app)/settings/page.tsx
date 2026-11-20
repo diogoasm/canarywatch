@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
 import { AppPage, Masthead, Section } from "@/components/AppPage";
 import Button from "@/components/Button";
+import { apiErrorMessage, PLAIN, reportError } from "@/lib/errors";
 
 const MONTHLY_LIMIT = 2;
 
@@ -188,9 +189,12 @@ export default function SettingsPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {
-      setResetStatus({ type: "error", message: error.message });
+      setResetStatus({
+        type: "error",
+        message: reportError("password reset", error, "Couldn't send the reset email. Try again in a moment."),
+      });
     } else {
-      setResetStatus({ type: "success", message: "Password reset email sent" });
+      setResetStatus({ type: "success", message: "Check your inbox for a link to choose a new password." });
     }
     setSendingReset(false);
   }
@@ -202,13 +206,15 @@ export default function SettingsPage() {
       const res = await fetch("/api/stripe/portal", { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json.url) {
-        setPortalError(json.error ?? "Failed to open subscription portal.");
+        setPortalError(
+          apiErrorMessage("billing portal", res, json, "Couldn't open your subscription settings. Try again in a moment.")
+        );
         setOpeningPortal(false);
         return;
       }
       window.location.href = json.url;
     } catch {
-      setPortalError("Network error. Please try again.");
+      setPortalError(reportError("billing portal", "network", PLAIN.network));
       setOpeningPortal(false);
     }
   }
@@ -220,7 +226,9 @@ export default function SettingsPage() {
       const res = await fetch("/api/account/delete", { method: "POST" });
       const json = await res.json();
       if (!res.ok) {
-        setDeleteError(json.error ?? "Failed to delete account.");
+        setDeleteError(
+          apiErrorMessage("delete account", res, json, "Couldn't delete your account. Try again in a moment.")
+        );
         setDeleting(false);
         return;
       }
@@ -230,7 +238,7 @@ export default function SettingsPage() {
       router.push("/");
       router.refresh();
     } catch {
-      setDeleteError("Network error. Please try again.");
+      setDeleteError(reportError("delete account", "network", PLAIN.network));
       setDeleting(false);
     }
   }
@@ -283,7 +291,7 @@ export default function SettingsPage() {
               </Button>
               {resetStatus && (
                 <p
-                  role="status"
+                  role={resetStatus.type === "error" ? "alert" : "status"}
                   className={`font-body text-sm ${
                     resetStatus.type === "success"
                       ? "text-positive-ink"

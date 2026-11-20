@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import StockSearch from "@/components/StockSearch";
 import { createClient } from "@/lib/supabase/client";
 import type { StockSearchResult } from "@/types";
 import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
 import { formatMoney, formatMoneyCompact } from "@/lib/format";
+import { apiErrorMessage, PLAIN, reportError } from "@/lib/errors";
 
 // ─── Types (mirrors /api/valuation response) ───────────────────────────────
 
@@ -46,24 +47,47 @@ function fmtQuarter(dateStr: string): string {
   return `Q${q} ${d.getFullYear()}`;
 }
 
-// ─── Tooltip ───────────────────────────────────────────────────────────────
+// ─── Explanatory notes ─────────────────────────────────────────────────────
+//
+// Each "?" is a small button. Pressing it (click, tap, Enter or Space) opens
+// the explanation inline, under the line it belongs to, so it can never run
+// off the screen; pressing it again closes it.
 
-function InfoTip({ text }: { text: string }) {
+function useNote() {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  return { id, open, toggle: () => setOpen((o) => !o) };
+}
+type Note = ReturnType<typeof useNote>;
+
+function NoteButton({ note, about }: { note: Note; about: string }) {
   return (
-    <span className="relative group inline-flex items-center align-middle ml-1.5">
-      <span
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-text-secondary/50 text-text-secondary font-body text-[10px] cursor-help select-none"
-        aria-label={text}
-      >
-        ?
-      </span>
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 hidden group-hover:block w-64 pointer-events-none">
-        <span className="block bg-[#1A1A1A] text-white font-body text-xs leading-relaxed rounded-lg px-3 py-2 shadow-xl">
-          {text}
-        </span>
-        <span className="block w-2 h-2 bg-[#1A1A1A] rotate-45 mx-auto -mt-1" />
-      </span>
-    </span>
+    <button
+      type="button"
+      aria-expanded={note.open}
+      aria-controls={note.id}
+      aria-label={`About ${about}`}
+      onClick={note.toggle}
+      className={`tap inline-flex items-center justify-center align-middle ml-1.5 w-4 h-4 rounded-full border font-body text-[10px] leading-none normal-case tracking-normal transition-colors ${
+        note.open
+          ? "bg-[#1A1A1A] border-[#1A1A1A] text-white"
+          : "border-text-secondary text-text-secondary hover:border-[#1A1A1A] hover:text-[#1A1A1A]"
+      }`}
+    >
+      ?
+    </button>
+  );
+}
+
+function NoteText({ note, children }: { note: Note; children: React.ReactNode }) {
+  return (
+    <p
+      id={note.id}
+      hidden={!note.open}
+      className="mt-2 mb-1 border-l-2 border-canary pl-3 font-body text-sm text-text-secondary leading-relaxed max-w-prose normal-case tracking-normal"
+    >
+      {children}
+    </p>
   );
 }
 
@@ -71,34 +95,43 @@ function InfoTip({ text }: { text: string }) {
 
 function CollapsibleCard({
   title,
-  tooltip,
+  about,
   children,
   defaultOpen = true,
 }: {
   title: string;
-  tooltip?: string;
+  /** The explanation behind the "?" beside the title. */
+  about?: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const note = useNote();
   return (
     <section className="border-t border-border">
-      <h2>
-        <button
-          onClick={() => setOpen((o) => !o)}
-          className="w-full flex items-center justify-between gap-4 py-6 text-left focus-inset"
-          aria-expanded={open}
-        >
-          <span className="font-display text-xl font-bold text-text-primary">
+      <div className="flex items-center gap-1">
+        <h2 className="min-w-0">
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="py-6 text-left font-display text-xl font-bold text-text-primary focus-inset"
+            aria-expanded={open}
+          >
             {title}
-            {tooltip && <InfoTip text={tooltip} />}
-          </span>
+          </button>
+        </h2>
+        {about && <NoteButton note={note} about={title} />}
+        {/* The chevron is a larger click target for the same toggle; the
+            title button is the one keyboards and screen readers use. */}
+        <div
+          aria-hidden="true"
+          onClick={() => setOpen((o) => !o)}
+          className="flex-1 self-stretch flex items-center justify-end cursor-pointer pl-4"
+        >
           <svg
             width="14"
             height="14"
             viewBox="0 0 14 14"
             fill="none"
-            aria-hidden="true"
             className={`shrink-0 text-text-secondary transition-transform duration-200 ${
               open ? "rotate-180" : ""
             }`}
@@ -111,8 +144,13 @@ function CollapsibleCard({
               strokeLinejoin="round"
             />
           </svg>
-        </button>
-      </h2>
+        </div>
+      </div>
+      {about && (
+        <div className="-mt-3 mb-5">
+          <NoteText note={note}>{about}</NoteText>
+        </div>
+      )}
       {open && <div className="pb-12">{children}</div>}
     </section>
   );
@@ -123,23 +161,27 @@ function CollapsibleCard({
 function ValueRow({
   label,
   value,
-  tooltip,
+  about,
   valueClass = "text-text-primary",
 }: {
   label: string;
   value: string;
-  tooltip?: string;
+  about?: string;
   valueClass?: string;
 }) {
+  const note = useNote();
   return (
-    <div className="flex items-center justify-between gap-4 py-3 border-b border-border last:border-0">
-      <span className="font-body text-sm text-text-secondary">
-        {label}
-        {tooltip && <InfoTip text={tooltip} />}
-      </span>
-      <span className={`font-mono text-sm font-bold ${valueClass}`}>
-        {value}
-      </span>
+    <div className="py-3 border-b border-border last:border-0">
+      <div className="flex items-center justify-between gap-4">
+        <span className="font-body text-sm text-text-secondary">
+          {label}
+          {about && <NoteButton note={note} about={label} />}
+        </span>
+        <span className={`font-mono text-sm font-bold text-right ${valueClass}`}>
+          {value}
+        </span>
+      </div>
+      {about && <NoteText note={note}>{about}</NoteText>}
     </div>
   );
 }
@@ -221,6 +263,47 @@ function FcfChart({ quarters }: { quarters: FcfQuarter[] }) {
   );
 }
 
+// One line of the DDM formula with its own "?" note under it.
+function NotedLine({
+  about,
+  note: text,
+  children,
+}: {
+  about: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  const note = useNote();
+  return (
+    <div>
+      <p className="font-body text-sm text-text-secondary">
+        {children}
+        <NoteButton note={note} about={about} />
+      </p>
+      <NoteText note={note}>{text}</NoteText>
+    </div>
+  );
+}
+
+function FcfBlock({ quarters }: { quarters: FcfQuarter[] }) {
+  const note = useNote();
+  return (
+    <div className="mb-5">
+      <SectionLabel as="h3" className="text-text-secondary !mb-3">
+        Free cash flow, last 4 quarters
+        <NoteButton note={note} about="free cash flow" />
+      </SectionLabel>
+      <div className="-mt-1 mb-3">
+        <NoteText note={note}>
+          Free cash flow is the actual cash a company generates after capital
+          expenditures. Growing FCF is generally a positive sign.
+        </NoteText>
+      </div>
+      <FcfChart quarters={quarters} />
+    </div>
+  );
+}
+
 // ─── DCF card ──────────────────────────────────────────────────────────────
 
 function DcfSection({ data }: { data: ValuationData }) {
@@ -244,7 +327,7 @@ function DcfSection({ data }: { data: ValuationData }) {
   return (
     <CollapsibleCard
       title="Discounted Cash Flow (DCF)"
-      tooltip="DCF calculates what a company's future cash flows are worth in today's money. It's the most widely used valuation method by professional investors."
+      about="DCF calculates what a company's future cash flows are worth in today's money. It's the most widely used valuation method by professional investors."
     >
       <div className="mb-4">
         {data.current_price !== null && (
@@ -256,7 +339,7 @@ function DcfSection({ data }: { data: ValuationData }) {
         <ValueRow
           label="DCF intrinsic value"
           value={formatMoney(dcf.intrinsic_value)}
-          tooltip="This is what the model estimates the stock is worth based on projected future cash flows discounted back to today. This is a model output, not a fact — it depends heavily on growth assumptions which may not reflect reality."
+          about="This is what the model estimates the stock is worth based on projected future cash flows discounted back to today. This is a model output, not a fact — it depends heavily on growth assumptions which may not reflect reality."
         />
         {data.current_price !== null && (
           <PremiumDiscountRow
@@ -294,13 +377,7 @@ function DcfSection({ data }: { data: ValuationData }) {
       )}
 
       {data.fcf_quarters.length > 0 && (
-        <div className="mb-5">
-          <SectionLabel as="h3" className="text-text-secondary !mb-3">
-            Free cash flow, last 4 quarters
-            <InfoTip text="Free cash flow is the actual cash a company generates after capital expenditures. Growing FCF is generally a positive sign." />
-          </SectionLabel>
-          <FcfChart quarters={data.fcf_quarters} />
-        </div>
+        <FcfBlock quarters={data.fcf_quarters} />
       )}
 
       <p className="font-body text-xs italic text-text-secondary leading-relaxed">
@@ -339,7 +416,7 @@ function DdmSection({ data }: { data: ValuationData }) {
   return (
     <CollapsibleCard
       title="Dividend Discount Model (DDM)"
-      tooltip="DDM values a stock based on the present value of all future dividend payments. Best for stable, mature companies with consistent dividend growth."
+      about="DDM values a stock based on the present value of all future dividend payments. Best for stable, mature companies with consistent dividend growth."
     >
       {/* Gordon Growth Model formula */}
       <div className="border-l-2 border-border pl-5 py-1 mb-6">
@@ -352,13 +429,18 @@ function DdmSection({ data }: { data: ValuationData }) {
             Next year&apos;s expected dividend:{" "}
             <span className="font-mono text-text-primary">{formatMoney(d1)}</span>
           </p>
-          <p className="font-body text-sm text-text-secondary">
+          <NotedLine
+            about="required rate of return"
+            note="The required rate of return (10%) represents what investors typically expect to earn from stocks historically."
+          >
             <span className="font-mono font-bold text-text-primary">r</span> ={" "}
             Required rate of return:{" "}
             <span className="font-mono text-text-primary">10%</span>
-            <InfoTip text="The required rate of return (10%) represents what investors typically expect to earn from stocks historically. You can adjust this assumption." />
-          </p>
-          <p className="font-body text-sm text-text-secondary">
+          </NotedLine>
+          <NotedLine
+            about="dividend growth rate"
+            note="Calculated from the last 3 years of dividend history. Past growth doesn't guarantee future growth."
+          >
             <span className="font-mono font-bold text-text-primary">g</span> ={" "}
             Dividend growth rate:{" "}
             <span className="font-mono text-text-primary">
@@ -366,8 +448,7 @@ function DdmSection({ data }: { data: ValuationData }) {
                 ? `${(g * 100).toFixed(1)}%`
                 : "0.0% (insufficient history)"}
             </span>
-            <InfoTip text="Calculated from the last 3 years of dividend history. Past growth doesn't guarantee future growth." />
-          </p>
+          </NotedLine>
           {intrinsic !== null && (
             <p className="font-body text-sm text-text-primary pt-2 border-t border-border mt-1">
               = Intrinsic value:{" "}
@@ -537,13 +618,14 @@ export default function ValuationPage() {
       const json = await res.json();
       if (run !== latestRequest.current) return;
       if (!res.ok) {
-        setError(json.error ?? "Failed to load valuation data.");
+        setError(apiErrorMessage("valuation", res, json, PLAIN.load));
       } else {
         setData(json as ValuationData);
+        if (!json.has_data) console.info("[valuation] no data:", json.unavailable_reason);
       }
-    } catch {
+    } catch (err) {
       if (run !== latestRequest.current) return;
-      setError("Network error. Please try again.");
+      setError(reportError("valuation", err, PLAIN.network));
     } finally {
       if (run === latestRequest.current) setLoading(false);
     }
@@ -562,7 +644,7 @@ export default function ValuationPage() {
       <div className="max-w-2xl">
         {/* ── Search ── */}
         <div className="pb-10">
-          <StockSearch onSelect={handleSelect} />
+          <StockSearch label="Find a stock" onSelect={handleSelect} />
           <QuickPicks
             holdings={holdings}
             selectedTicker={selected?.ticker ?? null}
@@ -598,10 +680,9 @@ export default function ValuationPage() {
             </div>
           ) : (
             <p className="border-t border-border py-6 font-body text-sm text-text-secondary leading-relaxed">
-              Data unavailable:{" "}
-              {data.unavailable_reason ??
-                "no valuation data returned for this ticker"}
-              .
+              There isn&apos;t enough data to value {data.ticker} yet. Smaller or
+              newly listed companies often don&apos;t report the cash flow or
+              dividend history these models need.
             </p>
           )
         ) : null}

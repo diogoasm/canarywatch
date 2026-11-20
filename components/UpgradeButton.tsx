@@ -1,6 +1,7 @@
 "use client";
 
 import Button from "@/components/Button";
+import { apiErrorMessage, PLAIN, reportError } from "@/lib/errors";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -48,13 +49,15 @@ export default function UpgradeButton({
       });
       const json = await res.json();
       if (!res.ok || !json.url) {
-        setError(json.error ?? "Failed to start checkout. Please try again.");
+        setError(
+          apiErrorMessage("checkout", res, json, "Couldn't open checkout. Try again in a moment.")
+        );
         setLoading(false);
         return;
       }
       window.location.href = json.url;
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      setError(reportError("checkout", err, PLAIN.network));
       setLoading(false);
     }
   }
@@ -76,7 +79,7 @@ export default function UpgradeButton({
           {loading ? "Redirecting…" : "Or upgrade annually for €79 a year"}
         </Button>
         {error && (
-          <span className="block font-body text-xs text-urgent-ink mt-2">
+          <span role="alert" className="block font-body text-xs text-urgent-ink mt-2">
             {error}
           </span>
         )}
@@ -90,7 +93,7 @@ export default function UpgradeButton({
         {loading ? "Redirecting to checkout…" : "Upgrade"}
       </Button>
       {error && (
-        <span className="block font-body text-xs text-urgent-ink mt-2">{error}</span>
+        <span role="alert" className="block font-body text-xs text-urgent-ink mt-2">{error}</span>
       )}
     </span>
   );

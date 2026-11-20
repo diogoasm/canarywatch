@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
 import Button from "@/components/Button";
 import { formatMoney, formatPercent } from "@/lib/format";
+import { apiErrorMessage, PLAIN, reportError } from "@/lib/errors";
 import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import CanaryStrip from "@/components/CanaryStrip";
 import { fetchQuote } from "@/lib/quotes";
@@ -566,15 +567,24 @@ export default function AdvisorPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        setError(json.error ?? "Something went wrong. Please try again.");
+        // 400 (no holdings) and 403 (monthly limit) are written for people.
+        setError(
+          apiErrorMessage(
+            "advisor generate",
+            res,
+            json,
+            "Couldn't write your briefing. Try again in a moment.",
+            [400, 403]
+          )
+        );
         setGenerating(false);
         return;
       }
 
       setBriefing(json.briefing as Briefing);
       await refetchProfile();
-    } catch {
-      setError("Network error. Please check your connection and try again.");
+    } catch (err) {
+      setError(reportError("advisor generate", err, PLAIN.network));
     } finally {
       setGenerating(false);
     }
@@ -707,7 +717,7 @@ export default function AdvisorPage() {
   const canaries = holdings.map((item) => ({
     id: item.id,
     ticker: item.ticker,
-    status: resolveHoldingCanary(item, quotes[item.ticker]).status,
+    ...resolveHoldingCanary(item, quotes[item.ticker]),
   }));
 
   const upcoming = (briefing?.content.key_dates ?? [])
@@ -769,7 +779,7 @@ export default function AdvisorPage() {
 
       {/* ── Error ── */}
       {error && (
-        <p className="border-t border-border py-4 font-body text-sm text-urgent-ink">
+        <p role="alert" className="border-t border-border py-4 font-body text-sm text-urgent-ink">
           {error}
         </p>
       )}

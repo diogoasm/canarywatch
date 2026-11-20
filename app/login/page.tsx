@@ -94,7 +94,7 @@ function LoginForm() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
@@ -128,18 +128,18 @@ function LoginForm() {
               placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base sm:text-sm text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
+              className="w-full px-4 py-3 bg-white border border-field rounded-lg font-body text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors"
             />
           </div>
 
           {error && (
-            <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
+            <p role="alert" className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3">
               {error}
             </p>
           )}
 
           {resetSent && (
-            <p className="font-body text-sm text-positive-ink bg-[#F2FBF7] border border-[#C3E8D7] rounded-lg px-4 py-3">
+            <p role="status" className="font-body text-sm text-positive-ink bg-[#F2FBF7] border border-[#C3E8D7] rounded-lg px-4 py-3">
               Password reset email sent. Check your inbox.
             </p>
           )}

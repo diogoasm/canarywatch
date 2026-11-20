@@ -1,19 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { WATCHLIST_CHANGED } from "@/components/CanaryFavicon";
-import CanaryStrip, { CanaryWithTooltip } from "@/components/CanaryStrip";
+import CanaryStrip, { CanaryToggletip } from "@/components/CanaryStrip";
 import CountUp from "@/components/CountUp";
 import MarketMovers from "@/components/MarketMovers";
 import StockSearch from "@/components/StockSearch";
 import { fetchQuote } from "@/lib/quotes";
-import type { StockSearchResult, WatchlistItem } from "@/types";
+import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
 import { calculatePnL, resolveHoldingCanary } from "@/lib/utils";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
 import Button from "@/components/Button";
+import { PLAIN, reportError } from "@/lib/errors";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -39,38 +40,19 @@ type NewsState =
   | { status: "error" }
   | { status: "loaded"; articles: NewsArticle[] };
 
-// ─── Loading skeleton row ──────────────────────────────────────────────────
-
-function SkeletonRow() {
-  return (
-    <div className="flex items-center gap-4 px-6 py-4 border-b border-border animate-pulse">
-      <div className="w-5 h-5 rounded-full bg-border shrink-0" />
-      <div className="flex-1 min-w-0">
-        <div className="h-3.5 bg-border rounded w-14 mb-1.5" />
-        <div className="h-3 bg-border rounded w-36" />
-      </div>
-      <div className="h-4 bg-border rounded w-16 hidden sm:block" />
-      <div className="h-4 bg-border rounded w-12 hidden md:block" />
-      <div className="h-4 bg-border rounded w-16 hidden md:block" />
-      <div className="h-4 bg-border rounded w-20 hidden sm:block" />
-      <div className="h-4 bg-border rounded w-16" />
-      <div className="w-8 h-8 bg-border rounded-lg shrink-0" />
-    </div>
-  );
-}
-
 // ─── Empty state ───────────────────────────────────────────────────────────
 
 function EmptyState() {
   const reduce = useReducedMotion();
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-4 gap-4">
+    <div className="flex flex-col items-center justify-center py-16 px-4 gap-4 border-b border-border">
       <motion.svg
         width="52"
         height="52"
         viewBox="0 0 24 24"
         fill="none"
         className="opacity-20"
+        aria-hidden="true"
         animate={reduce ? undefined : { y: [0, -8, 0] }}
         transition={
           reduce
@@ -92,13 +74,81 @@ function EmptyState() {
         />
       </motion.svg>
       <div className="text-center">
-        <h3 className="font-display text-xl text-text-primary mb-1">
+        <h2 className="font-display text-xl text-text-primary mb-1">
           Your watchlist is empty
-        </h3>
+        </h2>
         <p className="font-body text-sm text-text-secondary">
-          Search for a stock above to get started
+          Search for a stock above to add your first holding.
         </p>
       </div>
+    </div>
+  );
+}
+
+// ─── Holdings grid ─────────────────────────────────────────────────────────
+//
+// A ruled list, laid out on one grid so the columns line up row to row.
+//   Phones and tablets: two lines per row.
+//     canary · ticker ·············· price · Remove
+//            reason ················ P&L $ · P&L %
+//   lg: one row: canary · ticker/reason · price · P&L $ · P&L % · Remove
+//   xl: adds shares and average cost after price.
+// The ticker and its reason are two grid rows in every layout; the other
+// cells span both rows from lg up, so they sit centred beside the pair.
+
+const GRID =
+  "grid grid-cols-[2rem_minmax(0,1fr)_auto_auto] gap-x-4 gap-y-1 items-center " +
+  "lg:grid-cols-[2rem_minmax(0,1fr)_6rem_7.5rem_5.5rem_4.5rem] " +
+  "xl:grid-cols-[2rem_minmax(0,1fr)_6rem_4rem_6rem_7.5rem_5.5rem_4.5rem]";
+
+const CELL = {
+  canary: "col-start-1 row-start-1 lg:row-span-2",
+  ticker: "col-start-2 row-start-1 min-w-0",
+  reason: "col-start-2 row-start-2 min-w-0",
+  price: "col-start-3 row-start-1 lg:row-span-2 text-right",
+  shares: "hidden xl:block xl:col-start-4 xl:row-start-1 xl:row-span-2 text-right",
+  avg: "hidden xl:block xl:col-start-5 xl:row-start-1 xl:row-span-2 text-right",
+  pnl: "col-start-3 row-start-2 lg:col-start-4 lg:row-start-1 lg:row-span-2 xl:col-start-6 text-right",
+  pct: "col-start-4 row-start-2 lg:col-start-5 lg:row-start-1 lg:row-span-2 xl:col-start-7 text-right",
+  remove: "col-start-4 row-start-1 lg:col-start-6 lg:row-span-2 xl:col-start-8 text-right",
+};
+
+// The reason takes the colour of its canary, in the text-safe inks.
+const REASON_TONE: Record<CanaryStatus, string> = {
+  red: "text-urgent-ink",
+  yellow: "text-gold-ink",
+  green: "text-positive-ink",
+  grey: "text-text-secondary",
+};
+
+const HEAD = "font-mono text-[11px] font-normal uppercase tracking-widest text-text-secondary";
+
+// ─── Loading skeleton row ──────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <li aria-hidden="true" className={`${GRID} py-4 border-b border-border animate-pulse`}>
+      <div className={`${CELL.canary} w-5 h-5 rounded-full bg-border`} />
+      <div className={`${CELL.ticker} h-3.5 bg-border w-16`} />
+      <div className={`${CELL.reason} h-3 bg-border/70 w-40`} />
+      <div className={`${CELL.price} h-3.5 bg-border w-16 ml-auto`} />
+      <div className={`${CELL.pnl} h-3.5 bg-border w-16 ml-auto`} />
+      <div className={`${CELL.pct} h-3.5 bg-border w-12 ml-auto`} />
+    </li>
+  );
+}
+
+// ─── Column labels (one-row layout only) ───────────────────────────────────
+
+function ColumnHeaders() {
+  return (
+    <div aria-hidden="true" className={`${GRID} hidden lg:grid pb-3`}>
+      <span className={`${CELL.ticker} ${HEAD}`}>Stock</span>
+      <span className={`${CELL.price} ${HEAD}`}>Price</span>
+      <span className={`${CELL.shares} ${HEAD}`}>Shares</span>
+      <span className={`${CELL.avg} ${HEAD}`}>Avg cost</span>
+      <span className={`${CELL.pnl} ${HEAD}`}>P&amp;L $</span>
+      <span className={`${CELL.pct} ${HEAD}`}>P&amp;L %</span>
     </div>
   );
 }
@@ -111,13 +161,22 @@ function AddStockForm({
   onCancel,
 }: {
   selected: StockSearchResult;
-  onAdd: (shares: number, avgBuyPrice: number) => Promise<void>;
+  /** Resolves to a plain error message, or null when the stock was added. */
+  onAdd: (shares: number, avgBuyPrice: number) => Promise<string | null>;
   onCancel: () => void;
 }) {
+  const id = useId();
   const [shares, setShares] = useState("");
   const [avgBuyPrice, setAvgBuyPrice] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ field: "shares" | "price" | null; message: string } | null>(null);
+  const sharesRef = useRef<HTMLInputElement>(null);
+
+  // Picking a stock is the reason the form opened, so the first field is
+  // where the next keystroke belongs.
+  useEffect(() => {
+    sharesRef.current?.focus();
+  }, [selected.ticker]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -126,82 +185,89 @@ function AddStockForm({
     const priceNum = parseFloat(avgBuyPrice);
 
     if (isNaN(sharesNum) || sharesNum <= 0) {
-      setError("Enter a valid number of shares.");
+      setError({ field: "shares", message: "Enter how many shares you hold, for example 100." });
       return;
     }
     if (isNaN(priceNum) || priceNum <= 0) {
-      setError("Enter a valid buy price.");
+      setError({ field: "price", message: "Enter the average price you paid per share, for example 142.50." });
       return;
     }
 
     setSaving(true);
-    try {
-      await onAdd(sharesNum, priceNum);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add stock. Check the console for details.");
-    } finally {
-      setSaving(false);
-    }
+    const message = await onAdd(sharesNum, priceNum);
+    setSaving(false);
+    if (message) setError({ field: null, message });
   }
+
+  const errorId = `${id}-error`;
+  const INPUT =
+    "w-full px-3 py-2.5 bg-white border border-field rounded-lg font-mono text-base text-text-primary placeholder:text-text-secondary hover:border-text-primary focus:border-text-primary transition-colors aria-[invalid=true]:border-urgent-ink";
 
   return (
     <div className="mt-4 pt-5 pb-6 border-t-2 border-canary border-b border-b-border">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-baseline gap-2">
+        <h2 id={`${id}-title`} className="flex items-baseline gap-2">
           <span className="font-mono text-sm font-bold text-text-primary">
             {selected.ticker}
           </span>
-          <span className="font-body text-sm text-text-secondary">
+          <span className="font-body text-sm font-normal text-text-secondary">
             {selected.company_name}
           </span>
-        </div>
+        </h2>
         <button
+          type="button"
           onClick={onCancel}
           className="tap text-text-secondary hover:text-text-primary transition-colors p-1"
-          aria-label="Cancel"
+          aria-label={`Cancel adding ${selected.ticker}`}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path
-              d="M2 2l10 10M12 2L2 12"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col sm:flex-row gap-3 items-end"
+        noValidate
+        aria-labelledby={`${id}-title`}
+        className="flex flex-col sm:flex-row gap-3 sm:items-end"
       >
         <div className="flex flex-col gap-1.5 flex-1">
-          <label className="font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
+          <label htmlFor={`${id}-shares`} className="font-body text-sm text-text-secondary">
             Shares held
           </label>
           <input
+            ref={sharesRef}
+            id={`${id}-shares`}
             type="number"
+            inputMode="decimal"
             step="any"
             min="0.0001"
             placeholder="e.g. 100"
             value={shares}
             onChange={(e) => setShares(e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+            aria-invalid={error?.field === "shares"}
+            aria-describedby={error?.field === "shares" ? errorId : undefined}
+            className={INPUT}
           />
         </div>
 
         <div className="flex flex-col gap-1.5 flex-1">
-          <label className="font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
+          <label htmlFor={`${id}-price`} className="font-body text-sm text-text-secondary">
             Average buy price ($)
           </label>
           <input
+            id={`${id}-price`}
             type="number"
+            inputMode="decimal"
             step="any"
             min="0.0001"
             placeholder="e.g. 142.50"
             value={avgBuyPrice}
             onChange={(e) => setAvgBuyPrice(e.target.value)}
-            className="w-full px-3 py-2.5 bg-background border border-border rounded-lg font-mono text-sm text-text-primary placeholder:text-text-secondary focus:border-canary transition-colors"
+            aria-invalid={error?.field === "price"}
+            aria-describedby={error?.field === "price" ? errorId : undefined}
+            className={INPUT}
           />
         </div>
 
@@ -210,9 +276,9 @@ function AddStockForm({
         </Button>
       </form>
 
-      {error && (
-        <p className="font-body text-xs text-urgent-ink mt-2">{error}</p>
-      )}
+      <p id={errorId} role="alert" className="font-body text-sm text-urgent-ink empty:hidden mt-3">
+        {error?.message ?? ""}
+      </p>
     </div>
   );
 }
@@ -222,35 +288,32 @@ function AddStockForm({
 function WatchlistRow({
   item,
   quote,
-  onDelete,
+  onRemove,
   index,
 }: {
   item: WatchlistItem;
   quote: QuoteData | null | "loading";
-  onDelete: (id: string) => void;
+  onRemove: (item: WatchlistItem, viaKeyboard: boolean) => void;
   index: number;
 }) {
   const reduce = useReducedMotion();
   const isLoading = quote === "loading";
-  // quote.price can be undefined when the API returns an error object (no price field)
-  // Use != null to catch both null and undefined, and filter out NaN
-  const rawPrice = !isLoading && quote != null ? quote.price : undefined;
+  // A failed quote comes back as { price: 0, error }: treat it as no price,
+  // not as a 100% loss.
+  const usable = !isLoading && quote != null && !quote.error ? quote : null;
   const price: number | null =
-    rawPrice != null && !isNaN(rawPrice) ? rawPrice : null;
-  const rawChange =
-    !isLoading && quote != null ? quote.change_percent : undefined;
+    usable && usable.price != null && !isNaN(usable.price) ? usable.price : null;
   const changePercent: number | null =
-    rawChange != null && !isNaN(rawChange) ? rawChange : null;
-
-  const pnl =
-    price !== null
-      ? calculatePnL(item.shares, item.avg_buy_price, price)
+    usable && usable.change_percent != null && !isNaN(usable.change_percent)
+      ? usable.change_percent
       : null;
 
-  const { status, tooltip } = resolveHoldingCanary(
-    item,
-    isLoading ? null : quote
-  );
+  const pnl =
+    price !== null ? calculatePnL(item.shares, item.avg_buy_price, price) : null;
+
+  const canary = resolveHoldingCanary(item, usable);
+  const status = canary.status;
+  const reason = price === null ? "Price unavailable right now" : canary.tooltip;
 
   // Trigger a brief colour flash on the first successful price load.
   const wasLoadingRef = useRef(isLoading);
@@ -268,125 +331,196 @@ function WatchlistRow({
     wasLoadingRef.current = isLoading;
   }, [isLoading, price, changePercent, reduce]);
 
+  const tone = (n: number) => (n >= 0 ? "text-positive-ink" : "text-urgent-ink");
+  const dash = <span className="font-mono text-sm text-text-secondary">—</span>;
+
   return (
-    <motion.div
-      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+    <motion.li
+      data-holding={item.id}
+      initial={reduce ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, transition: { duration: reduce ? 0 : 0.15 } }}
       transition={{
-        duration: reduce ? 0 : 0.4,
+        duration: reduce ? 0 : 0.35,
         ease: "easeOut",
-        delay: reduce ? 0 : index * 0.08,
+        delay: reduce ? 0 : index * 0.06,
       }}
-      className="flex items-center gap-4 px-6 py-4 border-b border-border last:border-0 hover:bg-white/50 transition-colors group"
+      className={`${GRID} py-4 border-b border-border`}
     >
-      {/* Canary status */}
-      <div className="shrink-0 w-6">
+      {/* Canary: a button that opens the same reason shown under the ticker. */}
+      <div className={CELL.canary}>
         {isLoading ? (
           <div className="w-5 h-5 rounded-full bg-border animate-pulse" />
         ) : (
-          <CanaryWithTooltip status={status} tooltip={tooltip} />
+          <CanaryToggletip ticker={item.ticker} status={status} reason={reason} />
         )}
       </div>
 
-      {/* Ticker + name */}
-      <div className="flex-1 min-w-0">
-        <p className="font-mono text-sm font-bold text-text-primary">
-          {item.ticker}
-        </p>
-        <p className="font-body text-xs text-text-secondary truncate">
+      <p className={`${CELL.ticker} flex items-baseline gap-2`}>
+        <span className="font-mono text-sm font-bold text-text-primary">{item.ticker}</span>
+        <span className="hidden lg:inline font-body text-xs text-text-secondary truncate">
           {item.company_name}
-        </p>
-      </div>
+        </span>
+      </p>
 
-      {/* Current price */}
-      <div className="text-right hidden sm:block w-20 shrink-0">
+      <p className={`${CELL.reason} font-body text-xs leading-snug ${isLoading ? "text-text-secondary" : REASON_TONE[status]}`}>
         {isLoading ? (
-          <div className="h-3.5 bg-border rounded w-14 ml-auto animate-pulse" />
+          <span className="block h-3 w-32 bg-border/70 animate-pulse" aria-label="Loading" />
+        ) : (
+          reason
+        )}
+      </p>
+
+      <div className={CELL.price}>
+        <span className="sr-only">Price </span>
+        {isLoading ? (
+          <span className="block h-3.5 w-14 ml-auto bg-border animate-pulse" />
         ) : price !== null ? (
           <>
-            <p className={`font-mono text-sm text-text-primary ${flashClass}`}>
+            <span className={`block font-mono text-sm text-text-primary ${flashClass}`}>
               {formatMoney(price)}
-            </p>
+            </span>
             {changePercent !== null && changePercent !== 0 && (
-              <p
-                className={`font-mono text-xs ${
-                  changePercent >= 0 ? "text-positive-ink" : "text-urgent-ink"
-                }`}
-              >
+              <span className={`hidden lg:block font-mono text-xs ${tone(changePercent)}`}>
                 {formatPercent(changePercent)}
-              </p>
+                <span className="sr-only"> today</span>
+              </span>
             )}
           </>
         ) : (
-          <p className="font-mono text-sm text-text-secondary">—</p>
+          dash
         )}
       </div>
 
-      {/* Shares */}
-      <div className="text-right hidden md:block w-16 shrink-0">
-        <p className="font-mono text-sm text-text-secondary">{item.shares}</p>
-        <p className="font-body text-xs text-text-secondary">shares</p>
+      <div className={CELL.shares}>
+        <span className="sr-only">Shares </span>
+        <span className="font-mono text-sm text-text-secondary">{item.shares}</span>
       </div>
 
-      {/* Avg buy price */}
-      <div className="text-right hidden md:block w-20 shrink-0">
-        <p className="font-mono text-sm text-text-secondary">
+      <div className={CELL.avg}>
+        <span className="sr-only">Average cost </span>
+        <span className="font-mono text-sm text-text-secondary">
           {formatMoney(Number(item.avg_buy_price))}
-        </p>
-        <p className="font-body text-xs text-text-secondary">avg cost</p>
+        </span>
       </div>
 
-      {/* P&L $ */}
-      <div className="text-right hidden sm:block w-24 shrink-0">
+      <div className={CELL.pnl}>
+        <span className="sr-only">Profit or loss </span>
         {isLoading ? (
-          <div className="h-3.5 bg-border rounded w-16 ml-auto animate-pulse" />
+          <span className="block h-3.5 w-16 ml-auto bg-border animate-pulse" />
         ) : pnl !== null ? (
-          <p
-            className={`font-mono text-sm font-medium ${
-              pnl.dollars >= 0 ? "text-positive-ink" : "text-urgent-ink"
-            }`}
-          >
+          <span className={`font-mono text-sm font-medium ${tone(pnl.dollars)}`}>
             {formatMoney(pnl.dollars, { signed: true })}
-          </p>
+          </span>
         ) : (
-          <p className="font-mono text-sm text-text-secondary">—</p>
+          dash
         )}
       </div>
 
-      {/* P&L % */}
-      <div className="text-right w-16 shrink-0">
+      <div className={CELL.pct}>
         {isLoading ? (
-          <div className="h-3.5 bg-border rounded w-12 ml-auto animate-pulse" />
+          <span className="block h-3.5 w-12 ml-auto bg-border animate-pulse" />
         ) : pnl !== null ? (
-          <p
-            className={`font-mono text-sm font-bold ${
-              pnl.percent >= 0 ? "text-positive-ink" : "text-urgent-ink"
-            }`}
-          >
+          <span className={`font-mono text-sm font-bold ${tone(pnl.percent)}`}>
             {formatPercent(pnl.percent)}
-          </p>
+          </span>
         ) : (
-          <p className="font-mono text-sm text-text-secondary">—</p>
+          dash
         )}
       </div>
 
-      {/* Delete */}
-      <button
-        onClick={() => onDelete(item.id)}
-        className="tap shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-text-secondary hover:text-urgent-ink hover:bg-[#FDF2F2] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-        title="Remove from watchlist"
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M1.5 3.5h11M5.5 3.5V2.5h3v1M2.5 3.5l1 8a1 1 0 001 .9h6a1 1 0 001-.9l1-8"
-            stroke="currentColor"
-            strokeWidth="1.3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-    </motion.div>
+      <div className={CELL.remove}>
+        <Button
+          kind="text"
+          size="sm"
+          muted
+          aria-label={`Remove ${item.ticker}`}
+          // detail is 0 when a key, not a pointer, pressed the button.
+          onClick={(e) => onRemove(item, e.detail === 0)}
+        >
+          Remove
+        </Button>
+      </div>
+    </motion.li>
+  );
+}
+
+// ─── "Removed · Undo" message ──────────────────────────────────────────────
+
+const UNDO_MS = 5000;
+
+function UndoToast({
+  removed,
+  takeFocus,
+  onUndo,
+  onExpire,
+}: {
+  removed: { item: WatchlistItem; key: number } | null;
+  /** Move focus to Undo when it opens (the removal came from the keyboard). */
+  takeFocus: boolean;
+  onUndo: () => void;
+  /** Called when the message closes on its own; `hadFocus` if focus was in it. */
+  onExpire: (hadFocus: boolean) => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const undoRef = useRef<HTMLButtonElement>(null);
+  const [paused, setPaused] = useState(false);
+  const key = removed?.key;
+
+  // Each new message starts unpaused. (Focus can leave by the message
+  // closing under it, which fires no blur, so a pause could otherwise stick.)
+  useEffect(() => {
+    setPaused(false);
+  }, [key]);
+
+  useEffect(() => {
+    if (key !== undefined && takeFocus) undoRef.current?.focus();
+  }, [key, takeFocus]);
+
+  // Five seconds, paused while the pointer or keyboard focus is on it.
+  useEffect(() => {
+    if (key === undefined || paused) return;
+    const t = setTimeout(() => {
+      onExpire(Boolean(boxRef.current?.contains(document.activeElement)));
+    }, UNDO_MS);
+    return () => clearTimeout(t);
+  }, [key, paused, onExpire]);
+
+  return (
+    // The live region is always in the page, so its text is announced when
+    // it appears.
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed z-50 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 bottom-[calc(4rem+env(safe-area-inset-bottom)+0.75rem)] md:bottom-6 pointer-events-none"
+    >
+      {removed && (
+        <div
+          ref={boxRef}
+          onPointerEnter={() => setPaused(true)}
+          onPointerLeave={() => setPaused(false)}
+          onFocus={() => setPaused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) setPaused(false);
+          }}
+          className="on-dark pointer-events-auto flex items-center gap-3 bg-[#1A1A1A] text-white rounded-lg pl-4 pr-3 py-2 shadow-xl sm:min-w-[18rem]"
+        >
+          <p className="font-body text-sm">
+            Removed <span className="font-mono font-bold">{removed.item.ticker}</span>
+            <span aria-hidden="true" className="text-white/50"> · </span>
+          </p>
+          <Button
+            ref={undoRef}
+            kind="text"
+            onClick={onUndo}
+            aria-label={`Undo removing ${removed.item.ticker}`}
+            className="!text-canary !decoration-canary/50 hover:!decoration-canary"
+          >
+            Undo
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -484,33 +618,10 @@ function NewsSection({ news }: { news: NewsState }) {
   );
 }
 
-// ─── Column header row ─────────────────────────────────────────────────────
-
-function ColumnHeaders() {
-  return (
-    <div className="flex items-center gap-4 px-6 py-3 border-b border-border bg-background/60">
-      <div className="w-6 shrink-0" />
-      <div className="flex-1 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        Stock
-      </div>
-      <div className="text-right hidden sm:block w-20 shrink-0 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        Price
-      </div>
-      <div className="text-right hidden md:block w-16 shrink-0 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        Shares
-      </div>
-      <div className="text-right hidden md:block w-20 shrink-0 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        Avg Cost
-      </div>
-      <div className="text-right hidden sm:block w-24 shrink-0 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        P&amp;L $
-      </div>
-      <div className="text-right w-16 shrink-0 font-body text-xs font-medium text-text-secondary uppercase tracking-wide">
-        P&amp;L %
-      </div>
-      <div className="w-8 shrink-0" />
-    </div>
-  );
+function insertAt<T>(list: T[], item: T, index: number): T[] {
+  const next = [...list];
+  next.splice(index < 0 ? next.length : Math.min(index, next.length), 0, item);
+  return next;
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────
@@ -522,6 +633,12 @@ export default function WatchlistPage() {
   const [selectedStock, setSelectedStock] = useState<StockSearchResult | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [news, setNews] = useState<NewsState>({ status: "idle" });
+  // The last removal, kept for five seconds so it can be undone.
+  const [removed, setRemoved] = useState<{ item: WatchlistItem; index: number; key: number } | null>(null);
+  const [undoTakesFocus, setUndoTakesFocus] = useState(false);
+  const holdingsHeadingRef = useRef<HTMLHeadingElement>(null);
+  // After an undo, focus returns to the restored row's Remove action.
+  const [refocusId, setRefocusId] = useState<string | null>(null);
 
   // Fires after the watchlist itself has loaded — news never blocks the page,
   // and a failed fetch simply hides the section.
@@ -555,9 +672,8 @@ export default function WatchlistPage() {
 
     // Verify auth before querying — surfaces session issues immediately
     const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log("[watchlist] auth →", user ? `uid: ${user.id}` : "no user", userError ?? "");
     if (!user) {
-      setListError(`Not authenticated${userError ? `: ${userError.message}` : ". Try logging in again."}`);
+      setListError(reportError("watchlist auth", userError, PLAIN.session));
       setLoadingList(false);
       return;
     }
@@ -568,8 +684,7 @@ export default function WatchlistPage() {
       .order("added_at", { ascending: true });
 
     if (error) {
-      console.error("[watchlist] fetch error →", error);
-      setListError(`Supabase error: ${error.message} (code: ${error.code})`);
+      setListError(reportError("watchlist fetch", error, PLAIN.load));
       setLoadingList(false);
       return;
     }
@@ -611,43 +726,96 @@ export default function WatchlistPage() {
     fetchWatchlist();
   }, [fetchWatchlist]);
 
-  async function handleAddStock(shares: number, avgBuyPrice: number) {
-    if (!selectedStock) return;
-    const supabase = createClient();
+  async function handleAddStock(shares: number, avgBuyPrice: number): Promise<string | null> {
+    if (!selectedStock) return null;
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (!user) return reportError("watchlist add: auth", userError, PLAIN.session);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (!user) {
-      const msg = `Not authenticated${userError ? `: ${userError.message}` : ""}`;
-      console.error("[watchlist] handleAddStock — no user:", userError);
-      throw new Error(msg);
-    }
-
-    console.log("[watchlist] inserting:", selectedStock.ticker, "for uid:", user.id);
-
-    const { error } = await supabase.from("watchlist").insert({
-      user_id: user.id,
-      ticker: selectedStock.ticker,
-      company_name: selectedStock.company_name,
-      shares,
-      avg_buy_price: avgBuyPrice,
-    });
-
-    if (error) {
-      console.error("[watchlist] insert error →", error);
-      throw new Error(`${error.message} (code: ${error.code})`);
+      const { error } = await supabase.from("watchlist").insert({
+        user_id: user.id,
+        ticker: selectedStock.ticker,
+        company_name: selectedStock.company_name,
+        shares,
+        avg_buy_price: avgBuyPrice,
+      });
+      if (error) return reportError("watchlist add", error, PLAIN.save);
+    } catch (err) {
+      return reportError("watchlist add", err, PLAIN.network);
     }
 
     setSelectedStock(null);
     await fetchWatchlist();
     window.dispatchEvent(new Event(WATCHLIST_CHANGED));
+    return null;
   }
 
-  async function handleDelete(id: string) {
-    const supabase = createClient();
-    await supabase.from("watchlist").delete().eq("id", id);
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  // Removing takes the row out at once and deletes it on the server; Undo
+  // puts the same row back (same id and date, so it keeps its place).
+  async function handleRemove(item: WatchlistItem, viaKeyboard: boolean) {
+    const index = items.findIndex((i) => i.id === item.id);
+    setListError(null);
+    setItems((prev) => prev.filter((i) => i.id !== item.id));
+
+    let failed: unknown = null;
+    try {
+      const { error } = await createClient().from("watchlist").delete().eq("id", item.id);
+      failed = error;
+    } catch (err) {
+      failed = err;
+    }
+    if (failed) {
+      setItems((prev) => insertAt(prev, item, index));
+      setListError(reportError("watchlist remove", failed, `Couldn't remove ${item.ticker}. Try again in a moment.`));
+      return;
+    }
+
+    setUndoTakesFocus(viaKeyboard);
+    setRemoved({ item, index, key: Date.now() });
+    if (!viaKeyboard) holdingsHeadingRef.current?.focus({ preventScroll: true });
     window.dispatchEvent(new Event(WATCHLIST_CHANGED));
   }
+
+  async function handleUndo() {
+    if (!removed) return;
+    const { item, index } = removed;
+    setRemoved(null);
+    try {
+      const { error } = await createClient().from("watchlist").insert({
+        id: item.id,
+        user_id: item.user_id,
+        ticker: item.ticker,
+        company_name: item.company_name,
+        shares: item.shares,
+        avg_buy_price: item.avg_buy_price,
+        added_at: item.added_at,
+      });
+      if (error) throw error;
+    } catch (err) {
+      setListError(reportError("watchlist undo", err, `Couldn't put ${item.ticker} back. Add it again from the search.`));
+      holdingsHeadingRef.current?.focus();
+      return;
+    }
+    setItems((prev) => insertAt(prev, item, index));
+    setRefocusId(item.id);
+    window.dispatchEvent(new Event(WATCHLIST_CHANGED));
+  }
+
+  const handleUndoExpire = useCallback((hadFocus: boolean) => {
+    setRemoved(null);
+    // Focus was on Undo when the message went away: put it somewhere sensible.
+    if (hadFocus) holdingsHeadingRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!refocusId) return;
+    const button = document.querySelector<HTMLElement>(
+      `[data-holding="${refocusId}"] button[aria-label^="Remove"]`
+    );
+    button?.focus();
+    setRefocusId(null);
+  }, [refocusId, items]);
 
   // Portfolio totals from live quote data
   const totals = items.reduce(
@@ -715,7 +883,7 @@ export default function WatchlistPage() {
 
       {/* ── Search ── */}
       <div className="mb-6">
-        <StockSearch onSelect={setSelectedStock} />
+        <StockSearch label="Add a stock" onSelect={setSelectedStock} />
 
         {selectedStock && (
           <AddStockForm
@@ -728,38 +896,45 @@ export default function WatchlistPage() {
 
       {/* ── Error ── */}
       {listError && (
-        <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mb-4">
+        <p role="alert" className="border-t border-border py-4 font-body text-sm text-urgent-ink">
           {listError}
         </p>
       )}
 
-      {/* ── Table ── */}
-      <div className="card overflow-hidden">
+      {/* ── Holdings ── */}
+      <h2 ref={holdingsHeadingRef} tabIndex={-1} className="sr-only">
+        Holdings
+      </h2>
+      {!loadingList && items.length > 0 && <ColumnHeaders />}
+      <ul aria-label="Holdings" className="border-t border-border">
         {loadingList ? (
           <>
             <SkeletonRow />
             <SkeletonRow />
             <SkeletonRow />
           </>
-        ) : items.length === 0 ? (
-          <EmptyState />
         ) : (
-          <>
-            <ColumnHeaders />
-            <AnimatePresence initial={true}>
-              {items.map((item, index) => (
-                <WatchlistRow
-                  key={item.id}
-                  item={item}
-                  quote={quotes[item.ticker] ?? null}
-                  onDelete={handleDelete}
-                  index={index}
-                />
-              ))}
-            </AnimatePresence>
-          </>
+          <AnimatePresence initial={true}>
+            {items.map((item, index) => (
+              <WatchlistRow
+                key={item.id}
+                item={item}
+                quote={quotes[item.ticker] ?? null}
+                onRemove={handleRemove}
+                index={index}
+              />
+            ))}
+          </AnimatePresence>
         )}
-      </div>
+      </ul>
+      {!loadingList && items.length === 0 && <EmptyState />}
+
+      <UndoToast
+        removed={removed}
+        takeFocus={undoTakesFocus}
+        onUndo={handleUndo}
+        onExpire={handleUndoExpire}
+      />
 
       {/* ── Latest news ── */}
       {items.length > 0 && <NewsSection news={news} />}

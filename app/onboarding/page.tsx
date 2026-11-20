@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/Button";
+import { PLAIN, reportError } from "@/lib/errors";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
 import type { TraderType } from "@/types";
 
@@ -61,8 +62,7 @@ export default function OnboardingPage() {
     setSaving(false);
 
     if (upsertError) {
-      console.error("[onboarding] Supabase error:", upsertError);
-      setError(`Could not save: ${upsertError.message}`);
+      setError(reportError("onboarding", upsertError, PLAIN.save));
       return;
     }
 
@@ -168,7 +168,7 @@ export default function OnboardingPage() {
         </fieldset>
 
         {error && (
-          <p className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mt-4">
+          <p role="alert" className="font-body text-sm text-urgent-ink bg-[#FDF2F2] border border-[#FAD4D4] rounded-lg px-4 py-3 mt-4">
             {error}
           </p>
         )}
