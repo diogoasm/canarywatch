@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import type { CanaryStatus } from "@/types";
-import { getCanaryLabel } from "@/lib/utils";
+import { CANARY_MEANING } from "@/lib/canary";
 
 interface CanaryIconProps {
   status?: CanaryStatus;
@@ -30,7 +30,7 @@ export default function CanaryIcon({
   glow = false,
 }: CanaryIconProps) {
   const color = statusColors[status];
-  const label = getCanaryLabel(status);
+  const { label } = CANARY_MEANING[status];
   const reduce = useReducedMotion();
 
   // Only red asks for attention: three pulses, then it holds still. Yellow
@@ -82,7 +82,7 @@ export default function CanaryIcon({
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          aria-label={`${label} canary`}
+          aria-label={`Canary: ${label}`}
         >
           {/* Body */}
           <ellipse cx="12" cy="13" rx="6" ry="5" fill={color} />

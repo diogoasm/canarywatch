@@ -18,22 +18,25 @@ export default function SiteFooter() {
           <div className="flex items-center gap-6">
             <Link
               href="/privacy"
-              className="tap font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
+              className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               Privacy
             </Link>
             <Link
               href="/terms"
-              className="tap font-playfair text-sm text-text-secondary hover:text-text-primary transition-colors"
+              className="tap font-body text-sm text-text-secondary hover:text-text-primary transition-colors"
             >
               Terms
             </Link>
           </div>
 
-          {/* Tagline */}
-          <p className="font-body text-sm text-text-secondary italic">
-            Built for retail traders. Not Wall Street.
-          </p>
+          {/* Tagline and credit */}
+          <div className="text-center sm:text-right font-body text-text-secondary">
+            <p className="text-sm italic">
+              Built for retail traders. Not Wall Street.
+            </p>
+            <p className="mt-1 text-xs">Built by Diogo</p>
+          </div>
         </div>
       </div>
     </footer>

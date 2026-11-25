@@ -3,25 +3,19 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useInView, useReducedMotion } from "framer-motion";
 import { formatMoney } from "@/lib/format";
-
-export interface DailyClose {
-  date: string;
-  close: number;
-}
-
-const BOUGHT_ON = "2026-01-27";
-const SOLD_ON = "2026-04-21";
-const EARNINGS_ON = "2026-04-23";
-const PEAK_FROM = "2026-04-24";
-const PEAK_TO = "2026-04-30";
-const MAY_FROM = "2026-05-01";
-const MAY_TO = "2026-05-31";
+import {
+  CHART_COLORS,
+  EARNINGS_LABEL,
+  findStory,
+  formatDay,
+  toTime,
+  type DailyClose,
+} from "@/lib/intelStory";
 
 // The trade prices are the real fills, not the closes, so these labels sit a
 // few cents off the line they mark.
 const BOUGHT_LABEL = "Bought $43.84";
 const SOLD_LABEL = "Sold $65.72 · +50%";
-const EARNINGS_LABEL = "Earnings";
 const PEAK_NOTE = "about a week later";
 
 const MONTHS = [
@@ -32,49 +26,20 @@ const MONTHS = [
   { label: "May", start: "2026-05-01" },
 ];
 
-const INK = "#1A1A1A";
-const GREY = "#6B6B6B";
-const GREEN = "#2D9E6B";
-const CANARY = "#F5C842";
-const RED = "#E03B3B";
-// For text: RED is below 4.5:1 on the paper.
-const RED_INK = "#C42B2B";
-const RULE = "#E8E4DC";
-const PAPER = "#F7F5F0";
+const {
+  ink: INK,
+  grey: GREY,
+  green: GREEN,
+  canary: CANARY,
+  red: RED,
+  redInk: RED_INK,
+  rule: RULE,
+  paper: PAPER,
+} = CHART_COLORS;
 
 const PAD_TOP = 28;
 const PAD_BOTTOM = 28;
 const DRAW_MS = 1200;
-
-const toTime = (date: string) => Date.parse(`${date}T00:00:00Z`);
-
-function formatDay(date: string): string {
-  return new Date(toTime(date)).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
-}
-
-function findStory(closes: DailyClose[]) {
-  const on = (date: string) => closes.find((c) => c.date === date);
-  const highestBetween = (from: string, to: string) =>
-    closes
-      .filter((c) => c.date >= from && c.date <= to)
-      .reduce<DailyClose | null>(
-        (high, c) => (!high || c.close > high.close ? c : high),
-        null
-      );
-
-  const bought = on(BOUGHT_ON);
-  const sold = on(SOLD_ON);
-  const earnings = on(EARNINGS_ON);
-  const peak = highestBetween(PEAK_FROM, PEAK_TO);
-  const mayHigh = highestBetween(MAY_FROM, MAY_TO);
-  if (!bought || !sold || !earnings || !peak || !mayHigh) return null;
-
-  return { bought, sold, earnings, peak, mayHigh };
-}
 
 function Dot({ color }: { color: string }) {
   return (

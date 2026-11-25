@@ -3,37 +3,19 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { formatMoney, formatPercent } from "@/lib/format";
+import {
+  LIST_SIZE,
+  type Mover,
+  type MoverList,
+  type MoverListKey,
+  type MoversData,
+} from "@/lib/movers";
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-
-interface Mover {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  changesPercentage: number;
-}
-
-interface MoversData {
-  gainers: Mover[];
-  losers: Mover[];
-  mostActive: Mover[];
-  updatedAt: string;
-}
-
-type TabKey = "gainers" | "losers" | "mostActive";
-
-const TABS: { key: TabKey; label: string }[] = [
+const TABS: { key: MoverListKey; label: string }[] = [
   { key: "gainers", label: "Gainers" },
   { key: "losers", label: "Losers" },
   { key: "mostActive", label: "Most active" },
 ];
-
-const ROW_COUNT = 8;
-
-const MARKET_TIME_ZONE = "America/New_York";
-const MARKET_OPEN = 9 * 60 + 30; // minutes after midnight, ET
-const MARKET_CLOSE = 16 * 60;
 
 // The header and each row are separate grids, so the tracks are fixed widths
 // to keep the columns aligned.
@@ -50,35 +32,20 @@ function formatTime(iso: string): string {
   });
 }
 
-function isMarketHours(date: Date): boolean {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: MARKET_TIME_ZONE,
-    weekday: "short",
-    hour: "numeric",
-    minute: "numeric",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value;
-
-  const minutes = Number(part("hour")) * 60 + Number(part("minute"));
-  const weekday = part("weekday") !== "Sat" && part("weekday") !== "Sun";
-  return weekday && minutes >= MARKET_OPEN && minutes < MARKET_CLOSE;
+function formatWeekday(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short" });
 }
 
-function marketLabel(updatedAt: string): string {
-  const now = new Date();
-  if (!isMarketHours(now)) return "Last session · market closed";
+// The route decides what's live; times here are in the reader's own zone.
+function marketLabel({ live, asOf, closeAt }: MoverList): string {
+  if (live && asOf) return `Live · updated ${formatTime(asOf)}`;
+  if (!closeAt) return "Last session";
 
-  // The first visitor after the cache expires gets the old response while it
-  // regenerates, so on a quiet morning that can still be yesterday's data.
-  // HH:MM carries no date, so "Live" has to mean this session's numbers.
-  const updated = new Date(updatedAt);
-  const marketDay = (d: Date) =>
-    d.toLocaleDateString("en-US", { timeZone: MARKET_TIME_ZONE });
-  const thisSession =
-    isMarketHours(updated) && marketDay(updated) === marketDay(now);
-
-  return thisSession ? `Live · updated ${formatTime(updatedAt)}` : "Last session";
+  const label = `Last session · ${formatWeekday(closeAt)}, ${formatTime(closeAt)} close`;
+  // Saved during the session, so these aren't closing prices.
+  return asOf && asOf < closeAt
+    ? `${label} · prices from ${formatTime(asOf)}`
+    : label;
 }
 
 function toneClass(value: number): string {
@@ -137,10 +104,19 @@ function MoverRow({ mover, index }: { mover: Mover; index: number }) {
 
 // ─── Table ─────────────────────────────────────────────────────────────────
 
-export default function MarketMovers({ className }: { className?: string }) {
+export default function MarketMovers({
+  className,
+  innerClassName,
+  heading,
+}: {
+  className?: string;
+  innerClassName?: string;
+  /** Replaces the "Market movers" heading. */
+  heading?: React.ReactNode;
+}) {
   // undefined = still loading, null = fetch failed
   const [data, setData] = useState<MoversData | null | undefined>(undefined);
-  const [tab, setTab] = useState<TabKey>("gainers");
+  const [tab, setTab] = useState<MoverListKey>("gainers");
 
   useEffect(() => {
     let cancelled = false;
@@ -160,80 +136,84 @@ export default function MarketMovers({ className }: { className?: string }) {
   }, []);
 
   // A list that failed comes back empty, so its tab drops out.
-  const tabs = data ? TABS.filter((t) => data[t.key].length > 0) : TABS;
+  const tabs = data ? TABS.filter((t) => data[t.key].movers.length > 0) : TABS;
   if (data === null || tabs.length === 0) return null;
 
   const activeKey = tabs.find((t) => t.key === tab)?.key ?? tabs[0].key;
 
   return (
     <section className={className}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 mb-4">
-        <h2 className="font-playfair text-xl font-semibold text-text-primary">
-          Market movers
-        </h2>
-        <div role="group" aria-label="Market movers list" className="flex gap-5">
-          {tabs.map((t) => {
-            const active = t.key === activeKey;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setTab(t.key)}
-                className={`tap font-body text-[13px] py-1 border-b-2 transition-colors duration-150 ${
-                  active
-                    ? "text-text-primary border-canary"
-                    : "text-text-secondary border-transparent hover:text-text-primary"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
+      <div className={innerClassName}>
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 mb-5">
+          {heading ?? (
+            <h2 className="font-display text-xl font-semibold text-text-primary">
+              Market movers
+            </h2>
+          )}
+          <div role="group" aria-label="Market movers list" className="flex gap-5">
+            {tabs.map((t) => {
+              const active = t.key === activeKey;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTab(t.key)}
+                  className={`tap font-body text-[13px] py-1 border-b-2 transition-colors duration-150 ${
+                    active
+                      ? "text-text-primary border-canary"
+                      : "text-text-secondary border-transparent hover:text-text-primary"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <div
-        aria-hidden
-        className={`${COLUMNS} pb-2 border-b border-border font-mono text-[10px] uppercase tracking-wider text-text-secondary`}
-      >
-        <span>Symbol</span>
-        <span className="hidden sm:block">Name</span>
-        <span className="text-right">Price</span>
-        <span className="hidden sm:block text-right">Change</span>
-        <span className="text-right">Change %</span>
-      </div>
-
-      {data ? (
-        // Keyed by tab so switching remounts the rows and replays the fade.
-        <ul key={activeKey}>
-          {data[activeKey].map((mover, index) => (
-            <MoverRow key={mover.symbol} mover={mover} index={index} />
-          ))}
-        </ul>
-      ) : (
-        <div aria-hidden>
-          {Array.from({ length: ROW_COUNT }, (_, i) => (
-            <div key={i} className="h-[45px] flex items-center">
-              <div className="h-1 w-full bg-border animate-pulse" />
-            </div>
-          ))}
+        <div
+          aria-hidden
+          className={`${COLUMNS} pb-2 border-b border-border font-mono text-[10px] uppercase tracking-wider text-text-secondary`}
+        >
+          <span>Symbol</span>
+          <span className="hidden sm:block">Name</span>
+          <span className="text-right">Price</span>
+          <span className="hidden sm:block text-right">Change</span>
+          <span className="text-right">Change %</span>
         </div>
-      )}
 
-      {/* Too long for one line on a phone, so it breaks at the separator. The
-          line is kept but hidden while loading so nothing jumps on arrival. */}
-      <p
-        className={`mt-3 font-mono text-[11px] text-text-secondary ${
-          data ? "" : "invisible"
-        }`}
-      >
-        <span className="block sm:inline">
-          {data ? marketLabel(data.updatedAt) : " "}
-        </span>
-        <span className="hidden sm:inline"> · </span>
-        Data via Financial Modeling Prep
-      </p>
+        {data ? (
+          // Keyed by tab so switching remounts the rows and replays the fade.
+          <ul key={activeKey}>
+            {data[activeKey].movers.map((mover, index) => (
+              <MoverRow key={mover.symbol} mover={mover} index={index} />
+            ))}
+          </ul>
+        ) : (
+          <div aria-hidden>
+            {Array.from({ length: LIST_SIZE }, (_, i) => (
+              <div key={i} className="h-[45px] flex items-center">
+                <div className="h-1 w-full bg-border animate-pulse" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Too long for one line on a phone, so it breaks at the separator. The
+            line is kept but hidden while loading so nothing jumps on arrival. */}
+        <p
+          className={`mt-3 font-mono text-[11px] text-text-secondary ${
+            data ? "" : "invisible"
+          }`}
+        >
+          <span className="block sm:inline">
+            {data ? marketLabel(data[activeKey]) : " "}
+          </span>
+          <span className="hidden sm:inline"> · </span>
+          Data via Financial Modeling Prep
+        </p>
+      </div>
     </section>
   );
 }

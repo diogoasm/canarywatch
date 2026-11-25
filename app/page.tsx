@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Button from "@/components/Button";
 import Navbar from "@/components/Navbar";
 import CanaryIcon from "@/components/CanaryIcon";
+import CanaryKey from "@/components/CanaryKey";
 import FlyingCanaryIntro from "@/components/FlyingCanaryIntro";
-import IntelChart, { type DailyClose } from "@/components/IntelChart";
+import HeroIntelChart from "@/components/HeroIntelChart";
+import IntelChart from "@/components/IntelChart";
 import MarketMovers from "@/components/MarketMovers";
-import Reveal from "@/components/Reveal";
+import NumberedRows from "@/components/NumberedRows";
 import SiteFooter from "@/components/SiteFooter";
+import { CANARY_MEANING } from "@/lib/canary";
+import type { DailyClose } from "@/lib/intelStory";
 
 export const metadata: Metadata = {
   title: "Canary — Know before it moves",
@@ -25,11 +29,14 @@ export const metadata: Metadata = {
 const INTC_HISTORY_URL =
   "https://financialmodelingprep.com/stable/historical-price-eod/light?symbol=INTC&from=2026-01-01&to=2026-05-31";
 
+const meaning = (status: "red" | "yellow" | "green") =>
+  CANARY_MEANING[status].label.toLowerCase();
+
 const CAPABILITIES = [
   {
     number: "01",
     title: "Canary warnings",
-    body: "Every stock you hold gets a canary. Red means act soon, yellow means watch, green means good news. Checked every time you open the app.",
+    body: `Every stock you hold gets a canary. Red means ${meaning("red")}, yellow means ${meaning("yellow")}, green means ${meaning("green")}. Checked every time you open the app.`,
   },
   {
     number: "02",
@@ -111,14 +118,16 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="min-w-0">
-            <MarketMovers />
-          </div>
+          {closes && (
+            <div className="min-w-0">
+              <HeroIntelChart closes={closes} />
+            </div>
+          )}
         </div>
       </section>
 
       {/* ── Why this exists ──────────────────────────────────────────────── */}
-      <section className="border-t border-border">
+      <section id="why" className="scroll-mt-16 border-t border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28">
           <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-5">
             Why this exists
@@ -168,28 +177,34 @@ export default async function Home() {
             What Canary does
           </h2>
 
-          <ol className="border-t border-border">
-            {CAPABILITIES.map(({ number, title, body }, index) => (
-              <li key={number} className="border-b border-border">
-                <Reveal
-                  delay={index * 0.06}
-                  className="grid grid-cols-[2.5rem_minmax(0,1fr)] md:grid-cols-[4rem_minmax(0,2fr)_minmax(0,3fr)] items-baseline gap-x-4 md:gap-x-6 gap-y-2 py-8 sm:py-10"
-                >
-                  <span className="font-mono text-sm tabular-nums text-gold-ink">
-                    {number}
-                  </span>
-                  <h3 className="font-display text-xl sm:text-2xl text-text-primary">
-                    {title}
-                  </h3>
-                  <p className="col-start-2 md:col-start-3 font-body text-sm sm:text-base text-text-secondary leading-relaxed">
-                    {body}
-                  </p>
-                </Reveal>
-              </li>
-            ))}
-          </ol>
+          <NumberedRows rows={CAPABILITIES} />
         </div>
       </section>
+
+      {/* ── What the colours mean ────────────────────────────────────────── */}
+      <section className="border-t border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <h2 className="sr-only">What the canary colours mean</h2>
+          <CanaryKey />
+        </div>
+      </section>
+
+      {/* ── Today's market ───────────────────────────────────────────────── */}
+      {/* Draws its own section, so nothing is left behind if it can't load. */}
+      <MarketMovers
+        className="border-t border-border"
+        innerClassName="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28"
+        heading={
+          <div>
+            <h2 className="font-mono text-xs font-normal uppercase tracking-widest text-text-secondary mb-3">
+              Today&apos;s market
+            </h2>
+            <p className="font-body text-base text-text-primary">
+              The biggest moves among stocks above $10.
+            </p>
+          </div>
+        }
+      />
 
       {/* ── Close ────────────────────────────────────────────────────────── */}
       <section className="on-dark bg-[#1A1A1A]">

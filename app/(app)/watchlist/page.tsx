@@ -4,13 +4,15 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { WATCHLIST_CHANGED } from "@/components/CanaryFavicon";
+import { CanaryKeyToggle } from "@/components/CanaryKey";
 import CanaryStrip, { CanaryToggletip } from "@/components/CanaryStrip";
 import CountUp from "@/components/CountUp";
 import MarketMovers from "@/components/MarketMovers";
 import StockSearch from "@/components/StockSearch";
 import { fetchQuote } from "@/lib/quotes";
 import type { CanaryStatus, StockSearchResult, WatchlistItem } from "@/types";
-import { calculatePnL, resolveHoldingCanary } from "@/lib/utils";
+import { resolveHoldingCanary } from "@/lib/canary";
+import { calculatePnL } from "@/lib/utils";
 import { formatMoney, formatPercent } from "@/lib/format";
 import { AppPage, Masthead, SectionLabel } from "@/components/AppPage";
 import Button from "@/components/Button";
@@ -311,9 +313,10 @@ function WatchlistRow({
   const pnl =
     price !== null ? calculatePnL(item.shares, item.avg_buy_price, price) : null;
 
-  const canary = resolveHoldingCanary(item, usable);
-  const status = canary.status;
-  const reason = price === null ? "Price unavailable right now" : canary.tooltip;
+  const { status, reason } = resolveHoldingCanary(
+    item,
+    isLoading ? null : usable ?? {}
+  );
 
   // Trigger a brief colour flash on the first successful price load.
   const wasLoadingRef = useRef(isLoading);
@@ -877,6 +880,9 @@ export default function WatchlistPage() {
         {items.length > 0 && (
           <div className="mt-6">
             <CanaryStrip holdings={canaries} />
+            <div className="mt-5">
+              <CanaryKeyToggle />
+            </div>
           </div>
         )}
       </Masthead>

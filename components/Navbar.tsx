@@ -110,7 +110,7 @@ export default function Navbar() {
                 key={link.href}
                 href={link.href}
                 aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
-                className="tap font-playfair text-sm text-text-secondary hover:text-text-primary aria-[current=page]:text-text-primary transition-colors duration-150"
+                className="tap font-body text-sm text-text-secondary hover:text-text-primary aria-[current=page]:text-text-primary transition-colors duration-150"
               >
                 {link.label}
               </Link>
@@ -167,7 +167,7 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/login"
-                    className="tap font-playfair text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
+                    className="tap font-body text-sm font-medium text-text-secondary hover:text-text-primary transition-colors duration-150 hidden sm:block"
                   >
                     Log in
                   </Link>
@@ -198,7 +198,7 @@ export default function Navbar() {
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
                 aria-current={isCurrent(pathname, link.href) ? "page" : undefined}
-                className="focus-inset block font-playfair text-base text-text-primary py-3 px-6 border-b border-border"
+                className="focus-inset block font-body text-base text-text-primary py-3 px-6 border-b border-border"
               >
                 {link.label}
               </Link>

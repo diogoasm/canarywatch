@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchQuote } from "@/lib/quotes";
 import { createClient } from "@/lib/supabase/client";
-import { resolveHoldingCanary } from "@/lib/utils";
+import { resolveHoldingCanary } from "@/lib/canary";
 import type { CanaryStatus } from "@/types";
 
 // Fired by the watchlist page when a holding is added or removed.

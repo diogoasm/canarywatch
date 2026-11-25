@@ -17,7 +17,8 @@ import CanaryIcon, { CanaryLogoIcon } from "@/components/CanaryIcon";
 import CanaryStrip from "@/components/CanaryStrip";
 import { fetchQuote } from "@/lib/quotes";
 import type { CanaryStatus, Profile, WatchlistItem } from "@/types";
-import { daysUntil, resolveHoldingCanary } from "@/lib/utils";
+import { resolveHoldingCanary } from "@/lib/canary";
+import { daysUntil } from "@/lib/utils";
 
 // ─── Local types ───────────────────────────────────────────────────────────
 
@@ -444,7 +445,7 @@ function BriefingDisplay({
   onRegenerate,
 }: {
   briefing: Briefing;
-  holdings: { id: string; ticker: string; status: CanaryStatus }[];
+  holdings: { id: string; ticker: string; status: CanaryStatus; reason: string }[];
   upcoming: KeyDate[];
   canRegenerate: boolean;
   onRegenerate: () => void;

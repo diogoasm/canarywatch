@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import CanaryIcon from "@/components/CanaryIcon";
-import { getCanaryLabel } from "@/lib/utils";
+import { CANARY_MEANING } from "@/lib/canary";
 import type { CanaryStatus } from "@/types";
 
 // Gap between the icon and the note, plus a little room at the page edge.
@@ -84,7 +84,7 @@ export function CanaryToggletip({
         type="button"
         aria-expanded={open}
         aria-controls={noteId}
-        aria-label={`${ticker}: ${getCanaryLabel(status)}`}
+        aria-label={`${ticker}: ${CANARY_MEANING[status].label}`}
         onClick={() => {
           place();
           setOpen((o) => !o);
@@ -130,7 +130,7 @@ export default function CanaryStrip({
     id: string;
     ticker: string;
     status: CanaryStatus;
-    tooltip?: string;
+    reason: string;
   }[];
 }) {
   return (
@@ -140,17 +140,13 @@ export default function CanaryStrip({
           key={holding.id}
           className="flex flex-col items-center gap-2 min-w-[3rem]"
         >
-          {holding.tooltip ? (
-            <CanaryToggletip
-              ticker={holding.ticker}
-              status={holding.status}
-              reason={holding.tooltip}
-              size={28}
-            />
-          ) : (
-            <CanaryIcon status={holding.status} size={28} />
-          )}
-          <span aria-hidden={Boolean(holding.tooltip)} className="font-mono text-[11px] text-text-primary">
+          <CanaryToggletip
+            ticker={holding.ticker}
+            status={holding.status}
+            reason={holding.reason}
+            size={28}
+          />
+          <span aria-hidden="true" className="font-mono text-[11px] text-text-primary">
             {holding.ticker}
           </span>
         </li>

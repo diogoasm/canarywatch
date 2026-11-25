@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Button from "@/components/Button";
 import Navbar from "@/components/Navbar";
 import { CanaryLogoIcon } from "@/components/CanaryIcon";
+import NumberedRows from "@/components/NumberedRows";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "How it works",
@@ -35,29 +37,34 @@ const STEPS = [
   },
 ];
 
+// The homepage grid: same width, same gutters, everything off the left edge.
+const CONTAINER = "max-w-6xl mx-auto px-4 sm:px-6 lg:px-8";
+
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
       {/* ── Section 1: Hero ── */}
-      <header className="max-w-3xl mx-auto px-4 sm:px-6 pt-28 pb-24 text-center">
-        <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-6">
+      <header className={`${CONTAINER} pt-20 pb-16 lg:pt-28 lg:pb-20`}>
+        <p className="font-mono text-xs uppercase tracking-widest text-text-secondary mb-5">
           How it works
         </p>
-        <h1 className="font-playfair text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight mb-6">
+        <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-primary leading-tight tracking-tight text-balance mb-5">
           Built around one idea.
         </h1>
-        <p className="font-body text-lg text-text-secondary leading-relaxed max-w-xl mx-auto">
+        <p className="font-body text-lg text-text-secondary leading-relaxed max-w-[60ch]">
           Most investors don&apos;t lose because they lack information. They
           lose because they forget to pay attention at the right moment.
         </p>
       </header>
 
       {/* ── Section 2: The problem ── */}
-      <section className="py-20 sm:py-24 border-t border-border">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-          <p className="font-playfair italic text-2xl sm:text-3xl text-text-primary leading-snug">
+      <section className="border-t border-border">
+        <div
+          className={`${CONTAINER} py-20 sm:py-28 grid md:grid-cols-2 gap-10 md:gap-16 items-start`}
+        >
+          <p className="font-display italic text-2xl sm:text-3xl text-text-primary leading-snug">
             &ldquo;You did your research. You bought the stock. Then life
             happened.&rdquo;
           </p>
@@ -77,31 +84,19 @@ export default function HowItWorksPage() {
       </section>
 
       {/* ── Section 3: How Canary works ── */}
-      <section className="py-20 sm:py-24 border-t border-border">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 flex flex-col gap-16">
-          {STEPS.map((step) => (
-            <div key={step.number} className="flex flex-col gap-3">
-              <span className="font-mono text-4xl sm:text-5xl text-gold-ink">
-                {step.number}
-              </span>
-              <h2 className="font-playfair text-2xl sm:text-3xl font-bold text-text-primary">
-                {step.title}
-              </h2>
-              <p className="font-body text-base text-text-secondary leading-relaxed">
-                {step.body}
-              </p>
-            </div>
-          ))}
+      <section className="border-t border-border">
+        <div className={`${CONTAINER} py-20 sm:py-28`}>
+          <NumberedRows rows={STEPS} titleAs="h2" />
         </div>
       </section>
 
       {/* ── Section 4: The philosophy ── */}
-      <section className="on-dark bg-[#1A1A1A] py-24 sm:py-32">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-white mb-8">
+      <section className="on-dark bg-[#1A1A1A]">
+        <div className={`${CONTAINER} py-20 sm:py-28`}>
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight tracking-tight text-balance mb-8">
             Intelligence without noise.
           </h2>
-          <div className="font-body text-base text-white/70 leading-relaxed flex flex-col gap-4 mb-10">
+          <div className="max-w-[60ch] font-body text-base text-white/70 leading-relaxed flex flex-col gap-4 mb-10">
             <p>
               Most financial tools try to do too much. They overwhelm you with
               data, push you toward decisions, and make money when you trade
@@ -113,22 +108,28 @@ export default function HowItWorksPage() {
               makes sure you never forget to.
             </p>
           </div>
-          <div className="flex justify-center">
-            <CanaryLogoIcon size={32} />
-          </div>
+          <CanaryLogoIcon size={32} />
         </div>
       </section>
 
       {/* ── Section 5: CTA ── */}
-      <section className="py-24 sm:py-28 text-center px-4 sm:px-6">
-        <h2 className="font-playfair text-3xl sm:text-4xl font-bold text-text-primary mb-8">
-          Ready to start watching?
-        </h2>
-        <Button href="/signup">Create your free account</Button>
-        <p className="font-body text-sm text-text-secondary mt-5">
-          Free forever. No credit card required.
-        </p>
+      <section>
+        <div
+          className={`${CONTAINER} py-20 sm:py-28 flex flex-col items-start gap-8`}
+        >
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-text-primary leading-tight tracking-tight text-balance">
+            Ready to start watching?
+          </h2>
+          <div className="flex flex-col items-start gap-4">
+            <Button href="/signup">Create your free account</Button>
+            <p className="font-mono text-xs text-text-secondary">
+              Free. No card needed.
+            </p>
+          </div>
+        </div>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }
